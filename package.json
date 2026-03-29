@@ -1,0 +1,26 @@
+{
+  "name": "leetcodepro",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "services/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,api,ai,judge -c blue,green,yellow,magenta \"npm run dev -w @leetcodepro/web\" \"npm run dev -w @leetcodepro/api\" \"npm run dev -w @leetcodepro/ai-tutor\" \"npm run dev -w @leetcodepro/judge-dispatcher\"",
+    "dev:web": "npm run dev -w @leetcodepro/web",
+    "dev:api": "npm run dev -w @leetcodepro/api",
+    "dev:ai": "npm run dev -w @leetcodepro/ai-tutor",
+    "dev:judge": "npm run dev -w @leetcodepro/judge-dispatcher",
+    "setup:python": "python3 -m venv .venv && ./.venv/bin/python -m pip install -r services/ai-tutor/requirements.txt",
+    "build": "npm run build -w @leetcodepro/web && npm run build -w @leetcodepro/api",
+    "check": "npm run check --workspaces",
+    "e2e:minimal": "node scripts/e2e/minimal-flow.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
