@@ -9,6 +9,7 @@ class FlowError extends Error {
     Object.assign(this, extras);
   }
 }
+
 function log(step, message, data) {
   const ts = new Date().toISOString();
   console.log(`[${ts}] [${step}] ${message}`);
@@ -63,6 +64,44 @@ function mustBoolean(value, fallback) {
 
 function trimUrl(url) {
   return url.replace(/\/+$/, "");
+}
+
+function parseSseBlock(block) {
+  const lines = block.split(/\r?\n/);
+  let event = "message";
+  const dataLines = [];
+
+  for (const line of lines) {
+    if (line.startsWith("event:")) {
+      event = line.slice("event:".length).trim();
+      continue;
+    }
+    if (line.startsWith("data:")) {
+      dataLines.push(line.slice("data:".length).trimStart());
+    }
+  }
+
+  if (dataLines.length === 0) {
+    return null;
+  }
+
+  return {
+    event,
+    data: dataLines.join("\n")
+  };
+}
+
+function parseSsePayload(raw) {
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === "object" && parsed !== null) {
+      return parsed;
+    }
+  } catch {
+    // Fallback below.
+  }
+
+  return { delta: raw };
 }
 
 function getDefaultCode(language, problemSlug) {
@@ -139,6 +178,116 @@ async function requestJson({ method = "GET", url, body, timeoutMs = 10_000 }) {
   }
 }
 
+async function requestAiReviewBySse({ url, body, timeoutMs = 12_000 }) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    let response;
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+        signal: controller.signal
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new FlowError(`SSE request failed @ ${url}: ${message}`, EXIT_CODES.FLOW_ERROR);
+    }
+
+    if (!response.ok) {
+      const raw = await response.text();
+      let parsed;
+      try {
+        parsed = raw ? JSON.parse(raw) : {};
+      } catch {
+        parsed = { raw };
+      }
+      throw new FlowError(`HTTP ${response.status} ${response.statusText} @ ${url}`, EXIT_CODES.FLOW_ERROR, {
+        responsePayload: parsed
+      });
+    }
+
+    if (!response.body) {
+      throw new FlowError(`SSE response body missing @ ${url}`, EXIT_CODES.FLOW_ERROR);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    let buffer = "";
+    let guidance = "";
+    let source = "";
+    let sessionId = "";
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+
+      while (true) {
+        const boundary = buffer.indexOf("\n\n");
+        if (boundary < 0) {
+          break;
+        }
+
+        const rawBlock = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+        const frame = parseSseBlock(rawBlock);
+        if (!frame) {
+          continue;
+        }
+
+        const payload = parseSsePayload(frame.data);
+        if (frame.event === "meta") {
+          if (typeof payload.source === "string") {
+            source = payload.source;
+          }
+          if (typeof payload.sessionId === "string") {
+            sessionId = payload.sessionId;
+          }
+          continue;
+        }
+
+        if (frame.event === "delta") {
+          if (typeof payload.delta === "string" && payload.delta.length > 0) {
+            guidance += payload.delta;
+          }
+          continue;
+        }
+
+        if (frame.event === "done") {
+          if (typeof payload.guidance === "string" && payload.guidance.length > 0) {
+            guidance = payload.guidance;
+          }
+          if (typeof payload.source === "string" && payload.source.length > 0) {
+            source = payload.source;
+          }
+          if (typeof payload.sessionId === "string" && payload.sessionId.length > 0) {
+            sessionId = payload.sessionId;
+          }
+        }
+      }
+    }
+
+    if (guidance.length === 0) {
+      throw new FlowError("SSE completed but guidance is empty", EXIT_CODES.FLOW_ERROR);
+    }
+
+    return {
+      guidance,
+      source: source || "unknown",
+      sessionId
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -180,6 +329,7 @@ async function main() {
     language: args.language ?? process.env.E2E_LANGUAGE ?? "python",
     mode: args.mode ?? process.env.E2E_MODE ?? "core",
     expectedStatus: args["expected-status"] ?? process.env.E2E_EXPECTED_STATUS ?? "AC",
+    aiReviewMode: args["ai-review-mode"] ?? process.env.E2E_AI_REVIEW_MODE ?? "stream",
     pollIntervalMs: mustPositiveNumber(args["poll-interval-ms"] ?? process.env.E2E_POLL_INTERVAL_MS, 500),
     pollTimeoutMs: mustPositiveNumber(args["poll-timeout-ms"] ?? process.env.E2E_POLL_TIMEOUT_MS, 25_000),
     healthCheckDeps: mustBoolean(args["health-check-deps"] ?? process.env.E2E_HEALTH_CHECK_DEPS, true)
@@ -194,6 +344,9 @@ async function main() {
   }
   if (!TERMINAL_STATUSES.has(config.expectedStatus)) {
     throw new FlowError(`Unsupported expected status: ${config.expectedStatus}`, EXIT_CODES.ARGUMENT_ERROR);
+  }
+  if (!["sync", "stream"].includes(config.aiReviewMode)) {
+    throw new FlowError(`Unsupported ai review mode: ${config.aiReviewMode}`, EXIT_CODES.ARGUMENT_ERROR);
   }
 
   log("config", "Running minimal E2E flow with config", config);
@@ -252,17 +405,30 @@ async function main() {
     errorMessage: finalSubmission.errorMessage
   });
 
-  const aiReview = await requestJson({
-    method: "POST",
-    url: `${config.apiBaseUrl}/api/ai/review`,
-    body: {
-      problemSlug: config.problemSlug,
-      code,
-      status: finalSubmission.status,
-      errorMessage: finalSubmission.errorMessage
-    }
+  const aiReviewBody = {
+    problemSlug: config.problemSlug,
+    submissionId,
+    code,
+    status: finalSubmission.status,
+    errorMessage: finalSubmission.errorMessage
+  };
+  const aiReview =
+    config.aiReviewMode === "stream"
+      ? await requestAiReviewBySse({
+          url: `${config.apiBaseUrl}/api/ai/review/stream`,
+          body: aiReviewBody
+        })
+      : await requestJson({
+          method: "POST",
+          url: `${config.apiBaseUrl}/api/ai/review`,
+          body: aiReviewBody
+        });
+  log("ai-review", "AI review completed", {
+    mode: config.aiReviewMode,
+    source: aiReview.source,
+    sessionId: aiReview.sessionId,
+    guidance: aiReview.guidance
   });
-  log("ai-review", "AI review completed", { source: aiReview.source, guidance: aiReview.guidance });
 
   if (finalSubmission.status !== config.expectedStatus) {
     throw new FlowError("Unexpected submission status", EXIT_CODES.UNEXPECTED_STATUS, {

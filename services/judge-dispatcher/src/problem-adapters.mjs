@@ -104,6 +104,39 @@ function normalizeIntegerFromText(outputText) {
   return match ? match[0] : "invalid";
 }
 
+function normalizePlainText(value) {
+  if (typeof value !== "string") {
+    return "invalid";
+  }
+
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function normalizeJsonLikeText(value) {
+  const text = String(value ?? "").trim();
+  if (text.length === 0) {
+    return "";
+  }
+
+  try {
+    return JSON.stringify(JSON.parse(text));
+  } catch {
+    return text.replace(/\s+/g, " ").trim();
+  }
+}
+
+function normalizeGenericValue(value) {
+  if (typeof value === "string") {
+    return normalizeJsonLikeText(value);
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return normalizeJsonLikeText(String(value ?? ""));
+  }
+}
+
 function parseTwoSumInput(text) {
   const match = text.match(/^\s*nums\s*=\s*(\[[^\]]*\])\s*,\s*target\s*=\s*(-?\d+)\s*$/i);
   if (!match) {
@@ -207,6 +240,26 @@ const adapters = {
   }
 };
 
+function createGenericAcmAdapter(problemSlug) {
+  return {
+    slug: problemSlug,
+    entryFunctionName: "",
+    parseInput: (text) => String(text ?? ""),
+    parseExpected: (text) => normalizeJsonLikeText(text),
+    normalizeCoreResult: normalizeGenericValue,
+    normalizeAcmOutput: normalizeJsonLikeText,
+    normalizeExpected: (value) => normalizeGenericValue(value),
+    toAcmStdin: (input) => {
+      const source = String(input ?? "");
+      return source.endsWith("\n") ? source : `${source}\n`;
+    }
+  };
+}
+
 export function getProblemAdapter(problemSlug) {
-  return adapters[problemSlug] ?? null;
+  if (adapters[problemSlug]) {
+    return adapters[problemSlug];
+  }
+
+  return createGenericAcmAdapter(problemSlug);
 }

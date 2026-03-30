@@ -43,6 +43,11 @@ type SubmissionRow = {
   updatedAt: string;
 };
 
+type SubmissionHistoryRow = Omit<SubmissionRow, "code"> & {
+  passedCount: number;
+  totalCount: number;
+};
+
 type UserRow = {
   id: string;
 };
@@ -175,6 +180,40 @@ export class SubmissionsController {
 
     return {
       item: submission
+    };
+  }
+
+  @Get("history/by-problem/:problemSlug")
+  async listSubmissionHistory(@Param("problemSlug") problemSlug: string) {
+    const userId = await this.getOrCreateDemoUserId();
+
+    const result = await query<SubmissionHistoryRow>(
+      `
+        SELECT
+          submissions.id,
+          problems.slug AS "problemSlug",
+          submissions.language,
+          submissions.mode,
+          submissions.status,
+          submissions.runtime_ms AS "runtimeMs",
+          submissions.memory_kb AS "memoryKb",
+          submissions.passed_count AS "passedCount",
+          submissions.total_count AS "totalCount",
+          submissions.error_message AS "errorMessage",
+          submissions.created_at::text AS "createdAt",
+          submissions.updated_at::text AS "updatedAt"
+        FROM submissions
+        INNER JOIN problems ON problems.id = submissions.problem_id
+        WHERE submissions.user_id = $1
+          AND problems.slug = $2
+        ORDER BY submissions.created_at DESC
+        LIMIT 30;
+      `,
+      [userId, problemSlug]
+    );
+
+    return {
+      items: result.rows
     };
   }
 

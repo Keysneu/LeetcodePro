@@ -6,6 +6,7 @@ export type SubmissionStatus = "QUEUED" | "RUNNING" | "AC" | "WA" | "TLE" | "RE"
 
 export interface Problem {
   id: string;
+  leetcodeId: number | null;
   slug: string;
   title: string;
   difficulty: "Easy" | "Medium" | "Hard";

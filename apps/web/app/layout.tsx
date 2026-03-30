@@ -1,6 +1,23 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import "./globals.css";
+import TopNav from "@/components/top-nav";
+
+const themeInitScript = `
+(() => {
+  try {
+    const key = "leetcodepro-theme";
+    const stored = localStorage.getItem(key);
+    const theme = stored === "light" || stored === "dark"
+      ? stored
+      : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+    document.documentElement.style.colorScheme = theme;
+  } catch {
+    document.documentElement.setAttribute("data-theme", "dark");
+    document.documentElement.style.colorScheme = "dark";
+  }
+})();
+`;
 
 export const metadata: Metadata = {
   title: "LeetCodePro",
@@ -9,20 +26,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN">
-      <body>
-        <header className="sticky top-0 z-20 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
-          <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-            <Link href="/" className="text-lg font-bold text-white">
-              LeetCodePro
-            </Link>
-            <div className="flex items-center gap-6 text-sm text-slate-300">
-              <Link href="/problems">题库</Link>
-              <Link href="/progress">进度（预留）</Link>
-            </div>
-          </nav>
-        </header>
-        <main className="mx-auto max-w-7xl px-6 py-6">{children}</main>
+    <html lang="zh-CN" data-theme="dark" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="min-h-screen text-[var(--lc-text)] antialiased">
+        <TopNav />
+        <main className="mx-auto w-full max-w-[1400px] px-3 py-5 md:px-6 md:py-6">{children}</main>
       </body>
     </html>
   );

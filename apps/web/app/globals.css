@@ -4,16 +4,297 @@
 
 :root {
   color-scheme: dark;
+  --lc-font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    sans-serif;
+
+  --lc-page-bg: #121418;
+  --lc-page-glow-a: rgba(255, 161, 22, 0.1);
+  --lc-page-glow-b: rgba(77, 147, 255, 0.08);
+
+  --lc-surface: #1d212b;
+  --lc-surface-soft: #262b36;
+  --lc-border: #353a49;
+  --lc-border-soft: #434a5f;
+  --lc-text: #eff1f6;
+  --lc-text-muted: #a4adbf;
+
+  --lc-accent: #ffa116;
+  --lc-accent-soft: rgba(255, 161, 22, 0.14);
+  --lc-success: #2db55d;
+  --lc-danger: #ef4743;
+  --lc-info: #4d93ff;
+
+  --lc-shadow: 0 10px 35px rgba(0, 0, 0, 0.28);
+  --lc-row-hover: rgba(255, 255, 255, 0.03);
+  --lc-nav-bg: rgba(21, 24, 31, 0.88);
+  --lc-nav-link-hover: #2f3442;
+  --lc-focus-ring: rgba(255, 161, 22, 0.55);
+  --lc-code-editor-border: #353a49;
+
+  --lc-btn-primary-bg: #ffa116;
+  --lc-btn-primary-border: #cc840f;
+  --lc-btn-primary-text: #1c1400;
+  --lc-btn-secondary-bg: #262b36;
+  --lc-btn-secondary-hover: #303646;
+  --lc-btn-secondary-text: #eff1f6;
+  --lc-btn-info-bg: #1d355a;
+  --lc-btn-info-border: #2861bb;
+  --lc-btn-info-hover: #234474;
+  --lc-btn-info-text: #a9c9ff;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --lc-page-bg: #f4f6fb;
+  --lc-page-glow-a: rgba(255, 161, 22, 0.16);
+  --lc-page-glow-b: rgba(77, 147, 255, 0.12);
+
+  --lc-surface: #ffffff;
+  --lc-surface-soft: #f6f8fc;
+  --lc-border: #d7ddea;
+  --lc-border-soft: #c4ccdc;
+  --lc-text: #1f2430;
+  --lc-text-muted: #697184;
+
+  --lc-accent: #f08a00;
+  --lc-accent-soft: rgba(240, 138, 0, 0.14);
+  --lc-success: #239a4f;
+  --lc-danger: #cc3a33;
+  --lc-info: #2a6fdf;
+
+  --lc-shadow: 0 12px 30px rgba(22, 32, 56, 0.08);
+  --lc-row-hover: rgba(32, 43, 67, 0.05);
+  --lc-nav-bg: rgba(255, 255, 255, 0.86);
+  --lc-nav-link-hover: #edf1f8;
+  --lc-focus-ring: rgba(240, 138, 0, 0.45);
+  --lc-code-editor-border: #cfd6e4;
+
+  --lc-btn-primary-bg: #f08a00;
+  --lc-btn-primary-border: #cf7600;
+  --lc-btn-primary-text: #fff7e8;
+  --lc-btn-secondary-bg: #f2f5fb;
+  --lc-btn-secondary-hover: #e8edf7;
+  --lc-btn-secondary-text: #252d3b;
+  --lc-btn-info-bg: #eaf2ff;
+  --lc-btn-info-border: #8db2f5;
+  --lc-btn-info-hover: #dce9ff;
+  --lc-btn-info-text: #285eb9;
 }
 
 body {
   margin: 0;
-  background: radial-gradient(circle at top, #1e293b 0%, #020617 55%);
-  color: #e2e8f0;
-  font-family: "JetBrains Mono", "Fira Code", "SFMono-Regular", Menlo, monospace;
+  background:
+    radial-gradient(circle at top right, var(--lc-page-glow-a), transparent 32%),
+    radial-gradient(circle at top left, var(--lc-page-glow-b), transparent 30%),
+    var(--lc-page-bg);
+  color: var(--lc-text);
+  font-family: var(--lc-font-sans);
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+* {
+  border-color: var(--lc-border);
+}
+
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+*::-webkit-scrollbar-track {
+  background: color-mix(in oklab, var(--lc-page-bg) 75%, transparent);
+}
+
+*::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--lc-text-muted) 55%, transparent);
+}
+
+@layer components {
+  .lc-card {
+    @apply rounded-xl border bg-[var(--lc-surface)];
+    box-shadow: var(--lc-shadow);
+  }
+
+  .lc-card-header {
+    @apply flex items-center justify-between border-b px-4 py-3 text-sm font-medium;
+  }
+
+  .lc-muted {
+    @apply text-[var(--lc-text-muted)];
+  }
+
+  .lc-select {
+    @apply h-9 rounded-md border bg-[var(--lc-surface-soft)] px-3 text-sm text-[var(--lc-text)] outline-none transition;
+  }
+
+  .lc-select:focus {
+    box-shadow: 0 0 0 1px var(--lc-focus-ring);
+  }
+
+  .lc-btn {
+    @apply inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .lc-btn-primary {
+    @apply lc-btn border hover:brightness-105;
+    border-color: var(--lc-btn-primary-border);
+    background: var(--lc-btn-primary-bg);
+    color: var(--lc-btn-primary-text);
+  }
+
+  .lc-btn-secondary {
+    @apply lc-btn border text-[var(--lc-btn-secondary-text)];
+    background: var(--lc-btn-secondary-bg);
+  }
+
+  .lc-btn-secondary:hover {
+    background: var(--lc-btn-secondary-hover);
+  }
+
+  .lc-btn-info {
+    @apply lc-btn border;
+    border-color: var(--lc-btn-info-border);
+    background: var(--lc-btn-info-bg);
+    color: var(--lc-btn-info-text);
+  }
+
+  .lc-btn-info:hover {
+    background: var(--lc-btn-info-hover);
+  }
+
+  .lc-badge {
+    @apply inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold;
+  }
+
+  .lc-status-ac {
+    border-color: color-mix(in oklab, var(--lc-success) 55%, transparent);
+    background: color-mix(in oklab, var(--lc-success) 15%, transparent);
+    color: var(--lc-success);
+  }
+
+  .lc-status-pending {
+    border-color: color-mix(in oklab, var(--lc-info) 58%, transparent);
+    background: color-mix(in oklab, var(--lc-info) 15%, transparent);
+    color: var(--lc-info);
+  }
+
+  .lc-status-fail {
+    border-color: color-mix(in oklab, var(--lc-danger) 55%, transparent);
+    background: color-mix(in oklab, var(--lc-danger) 14%, transparent);
+    color: var(--lc-danger);
+  }
+
+  .lc-tab {
+    @apply inline-flex h-9 items-center border-b-2 border-transparent px-3 text-sm font-medium transition;
+    color: var(--lc-text-muted);
+  }
+
+  .lc-tab:hover {
+    color: var(--lc-text);
+  }
+
+  .lc-tab:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .lc-tab-active {
+    border-bottom-color: var(--lc-accent);
+    color: var(--lc-text);
+  }
+
+  .lc-markdown h1,
+  .lc-markdown h2,
+  .lc-markdown h3,
+  .lc-markdown h4 {
+    @apply mt-4 font-semibold;
+    line-height: 1.4;
+  }
+
+  .lc-markdown h1 {
+    @apply text-xl;
+  }
+
+  .lc-markdown h2 {
+    @apply text-lg;
+  }
+
+  .lc-markdown h3 {
+    @apply text-base;
+  }
+
+  .lc-markdown p,
+  .lc-markdown ul,
+  .lc-markdown ol,
+  .lc-markdown blockquote {
+    @apply mt-3;
+    line-height: 1.75;
+  }
+
+  .lc-markdown ul {
+    @apply list-disc pl-5;
+  }
+
+  .lc-markdown ol {
+    @apply list-decimal pl-5;
+  }
+
+  .lc-markdown li + li {
+    @apply mt-1;
+  }
+
+  .lc-markdown a {
+    color: var(--lc-info);
+    text-decoration: underline;
+  }
+
+  .lc-markdown code {
+    @apply rounded border px-1 py-0.5 text-xs;
+    border-color: var(--lc-border-soft);
+    background: color-mix(in oklab, var(--lc-surface-soft) 82%, transparent);
+    font-family:
+      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  }
+
+  .lc-markdown pre {
+    @apply mt-3 overflow-x-auto rounded-lg border p-3 text-xs;
+    border-color: var(--lc-border-soft);
+    background: color-mix(in oklab, var(--lc-surface) 88%, black 12%);
+  }
+
+  .lc-markdown pre code {
+    @apply border-0 bg-transparent p-0;
+  }
+
+  .lc-markdown blockquote {
+    @apply border-l-2 pl-3 text-sm;
+    border-color: var(--lc-border-soft);
+    color: var(--lc-text-muted);
+  }
+
+  .lc-markdown hr {
+    @apply my-4 border-0 border-t;
+    border-color: var(--lc-border);
+  }
+
+  .lc-markdown table {
+    @apply mt-3 w-full border-collapse overflow-hidden rounded-lg border text-left text-xs;
+  }
+
+  .lc-markdown th,
+  .lc-markdown td {
+    @apply border px-2 py-1.5 align-top;
+    border-color: var(--lc-border-soft);
+  }
+
+  .lc-markdown th {
+    @apply font-semibold;
+    background: color-mix(in oklab, var(--lc-surface-soft) 86%, transparent);
+  }
 }

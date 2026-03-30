@@ -57,8 +57,29 @@ test("container adapter parses input and integer outputs", () => {
   assert.equal(adapter.normalizeExpected(parsedExpected), "49");
 });
 
-test("unsupported problem returns null adapter", () => {
-  assert.equal(getProblemAdapter("unknown-problem"), null);
+test("unknown problem falls back to generic acm adapter", () => {
+  const adapter = getProblemAdapter("unknown-problem");
+  assert.ok(adapter);
+
+  const parsedInput = adapter.parseInput("hello\nworld");
+  const stdin = adapter.toAcmStdin(parsedInput);
+  const normalizedExpected = adapter.normalizeExpected(adapter.parseExpected("foo   bar"));
+  const normalizedActual = adapter.normalizeAcmOutput("foo\nbar");
+
+  assert.equal(stdin, "hello\nworld\n");
+  assert.equal(normalizedExpected, "foo bar");
+  assert.equal(normalizedActual, "foo bar");
+});
+
+test("generic adapter normalizes JSON whitespace differences", () => {
+  const adapter = getProblemAdapter("another-unknown-problem");
+  assert.ok(adapter);
+
+  const expected = adapter.normalizeExpected(adapter.parseExpected("[null, null, 1, [2, 3]]"));
+  const actual = adapter.normalizeAcmOutput("[null,null,1,[2,3]]\n");
+
+  assert.equal(expected, "[null,null,1,[2,3]]");
+  assert.equal(actual, "[null,null,1,[2,3]]");
 });
 
 test("adapter rejects malformed test case input", () => {

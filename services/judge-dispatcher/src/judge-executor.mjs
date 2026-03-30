@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { buildCppCoreProgram, buildPythonCoreProgram } from "./core-wrapper.mjs";
 import { getProblemAdapter } from "./problem-adapters.mjs";
@@ -9,6 +10,8 @@ import { getSandboxExecutionMode, runSandboxCommand } from "./sandbox-runner.mjs
 const CASE_TIMEOUT_MS = Number(process.env.JUDGE_CASE_TIMEOUT_MS ?? 2000);
 const COMPILE_TIMEOUT_MS = Number(process.env.JUDGE_COMPILE_TIMEOUT_MS ?? 6000);
 const SANDBOX_STARTUP_GRACE_MS = Number(process.env.JUDGE_SANDBOX_STARTUP_GRACE_MS ?? 8000);
+const JUDGE_DISPATCHER_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const JSON_HEADER_PATH = path.join(JUDGE_DISPATCHER_ROOT, "vendor", "nlohmann", "json.hpp");
 
 function summarizeStderr(stderr) {
   const trimmed = stderr.trim();
@@ -16,7 +19,7 @@ function summarizeStderr(stderr) {
     return "No stderr output";
   }
 
-  return trimmed.length > 600 ? `${trimmed.slice(0, 600)}...` : trimmed;
+  return trimmed;
 }
 
 function toSandboxTimeout(baseTimeoutMs) {
@@ -52,6 +55,11 @@ function aggregateSubmissionResult(caseResults) {
     errorMessage: firstFailure?.stderr ?? null,
     caseResults
   };
+}
+
+function ensureTrailingNewline(text) {
+  const source = String(text ?? "");
+  return source.endsWith("\n") ? source : `${source}\n`;
 }
 
 function buildCppCompileSpec(workDir, sourceName, outputName) {
@@ -115,8 +123,14 @@ async function compileCpp(sourceCode, workDir, sourceName, outputName) {
   };
 }
 
+async function ensureCoreCppDependencies(workDir) {
+  const targetPath = path.join(workDir, "json.hpp");
+  await fs.copyFile(JSON_HEADER_PATH, targetPath);
+}
+
 async function prepareExecutable(submission, workDir) {
   if (submission.mode === "core" && submission.language === "cpp") {
+    await ensureCoreCppDependencies(workDir);
     const sourceCode = buildCppCoreProgram(submission.problemSlug, submission.code);
     return await compileCpp(sourceCode, workDir, "core_main.cpp", "core_main.out");
   }
@@ -211,12 +225,15 @@ export async function judgeSubmissionWithCases(submission, testCases) {
 
   try {
     structuredCases = testCases.map((testCase) => {
-      const input = adapter.parseInput(testCase.inputData);
       const expected = adapter.parseExpected(testCase.expectedOutput);
+      const stdin =
+        submission.mode === "core"
+          ? ensureTrailingNewline(testCase.inputData)
+          : adapter.toAcmStdin(adapter.parseInput(testCase.inputData));
 
       return {
         caseId: testCase.id,
-        stdin: adapter.toAcmStdin(input),
+        stdin,
         expectedNormalized: adapter.normalizeExpected(expected)
       };
     });

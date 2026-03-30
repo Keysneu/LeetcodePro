@@ -1,0 +1,1793 @@
+{
+  "two-sum": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "twoSum",
+        "returnType": "vector<int>",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          },
+          {
+            "type": "int",
+            "name": "target"
+          }
+        ]
+      }
+    ]
+  },
+  "group-anagrams": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "groupAnagrams",
+        "returnType": "vector<vector<string>>",
+        "params": [
+          {
+            "type": "vector<string>&",
+            "name": "strs"
+          }
+        ]
+      }
+    ]
+  },
+  "longest-consecutive-sequence": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "longestConsecutive",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "move-zeroes": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "moveZeroes",
+        "returnType": "void",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "container-with-most-water": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "maxArea",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "height"
+          }
+        ]
+      }
+    ]
+  },
+  "3sum": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "threeSum",
+        "returnType": "vector<vector<int>>",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "trapping-rain-water": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "trap",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "height"
+          }
+        ]
+      }
+    ]
+  },
+  "longest-substring-without-repeating-characters": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "lengthOfLongestSubstring",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "string",
+            "name": "s"
+          }
+        ]
+      }
+    ]
+  },
+  "find-all-anagrams-in-a-string": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "findAnagrams",
+        "returnType": "vector<int>",
+        "params": [
+          {
+            "type": "string",
+            "name": "s"
+          },
+          {
+            "type": "string",
+            "name": "p"
+          }
+        ]
+      }
+    ]
+  },
+  "subarray-sum-equals-k": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "subarraySum",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          },
+          {
+            "type": "int",
+            "name": "k"
+          }
+        ]
+      }
+    ]
+  },
+  "sliding-window-maximum": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "maxSlidingWindow",
+        "returnType": "vector<int>",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          },
+          {
+            "type": "int",
+            "name": "k"
+          }
+        ]
+      }
+    ]
+  },
+  "minimum-window-substring": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "minWindow",
+        "returnType": "string",
+        "params": [
+          {
+            "type": "string",
+            "name": "s"
+          },
+          {
+            "type": "string",
+            "name": "t"
+          }
+        ]
+      }
+    ]
+  },
+  "maximum-subarray": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "maxSubArray",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "merge-intervals": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "merge",
+        "returnType": "vector<vector<int>>",
+        "params": [
+          {
+            "type": "vector<vector<int>>&",
+            "name": "intervals"
+          }
+        ]
+      }
+    ]
+  },
+  "rotate-array": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "rotate",
+        "returnType": "void",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          },
+          {
+            "type": "int",
+            "name": "k"
+          }
+        ]
+      }
+    ]
+  },
+  "product-of-array-except-self": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "productExceptSelf",
+        "returnType": "vector<int>",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "first-missing-positive": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "firstMissingPositive",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "set-matrix-zeroes": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "setZeroes",
+        "returnType": "void",
+        "params": [
+          {
+            "type": "vector<vector<int>>&",
+            "name": "matrix"
+          }
+        ]
+      }
+    ]
+  },
+  "spiral-matrix": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "spiralOrder",
+        "returnType": "vector<int>",
+        "params": [
+          {
+            "type": "vector<vector<int>>&",
+            "name": "matrix"
+          }
+        ]
+      }
+    ]
+  },
+  "rotate-image": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "rotate",
+        "returnType": "void",
+        "params": [
+          {
+            "type": "vector<vector<int>>&",
+            "name": "matrix"
+          }
+        ]
+      }
+    ]
+  },
+  "search-a-2d-matrix-ii": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "searchMatrix",
+        "returnType": "bool",
+        "params": [
+          {
+            "type": "vector<vector<int>>&",
+            "name": "matrix"
+          },
+          {
+            "type": "int",
+            "name": "target"
+          }
+        ]
+      }
+    ]
+  },
+  "intersection-of-two-linked-lists": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": []
+  },
+  "reverse-linked-list": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "reverseList",
+        "returnType": "ListNode*",
+        "params": [
+          {
+            "type": "ListNode*",
+            "name": "head"
+          }
+        ]
+      }
+    ]
+  },
+  "palindrome-linked-list": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "isPalindrome",
+        "returnType": "bool",
+        "params": [
+          {
+            "type": "ListNode*",
+            "name": "head"
+          }
+        ]
+      }
+    ]
+  },
+  "linked-list-cycle": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "hasCycle",
+        "returnType": "bool",
+        "params": [
+          {
+            "type": "ListNode*",
+            "name": "head"
+          }
+        ]
+      }
+    ]
+  },
+  "linked-list-cycle-ii": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": []
+  },
+  "merge-two-sorted-lists": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "mergeTwoLists",
+        "returnType": "ListNode*",
+        "params": [
+          {
+            "type": "ListNode*",
+            "name": "list1"
+          },
+          {
+            "type": "ListNode*",
+            "name": "list2"
+          }
+        ]
+      }
+    ]
+  },
+  "add-two-numbers": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "addTwoNumbers",
+        "returnType": "ListNode*",
+        "params": [
+          {
+            "type": "ListNode*",
+            "name": "l1"
+          },
+          {
+            "type": "ListNode*",
+            "name": "l2"
+          }
+        ]
+      }
+    ]
+  },
+  "remove-nth-node-from-end-of-list": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "removeNthFromEnd",
+        "returnType": "ListNode*",
+        "params": [
+          {
+            "type": "ListNode*",
+            "name": "head"
+          },
+          {
+            "type": "int",
+            "name": "n"
+          }
+        ]
+      }
+    ]
+  },
+  "swap-nodes-in-pairs": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "swapPairs",
+        "returnType": "ListNode*",
+        "params": [
+          {
+            "type": "ListNode*",
+            "name": "head"
+          }
+        ]
+      }
+    ]
+  },
+  "reverse-nodes-in-k-group": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "reverseKGroup",
+        "returnType": "ListNode*",
+        "params": [
+          {
+            "type": "ListNode*",
+            "name": "head"
+          },
+          {
+            "type": "int",
+            "name": "k"
+          }
+        ]
+      }
+    ]
+  },
+  "copy-list-with-random-pointer": {
+    "className": "Node",
+    "kind": "design",
+    "methods": [
+      {
+        "name": "Node",
+        "returnType": null,
+        "params": [
+          {
+            "type": "int",
+            "name": "_val"
+          }
+        ]
+      },
+      {
+        "name": "copyRandomList",
+        "returnType": "Node*",
+        "params": [
+          {
+            "type": "Node*",
+            "name": "head"
+          }
+        ]
+      }
+    ]
+  },
+  "sort-list": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "sortList",
+        "returnType": "ListNode*",
+        "params": [
+          {
+            "type": "ListNode*",
+            "name": "head"
+          }
+        ]
+      }
+    ]
+  },
+  "merge-k-sorted-lists": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "mergeKLists",
+        "returnType": "ListNode*",
+        "params": [
+          {
+            "type": "vector<ListNode*>&",
+            "name": "lists"
+          }
+        ]
+      }
+    ]
+  },
+  "lru-cache": {
+    "className": "LRUCache",
+    "kind": "design",
+    "methods": [
+      {
+        "name": "LRUCache",
+        "returnType": null,
+        "params": [
+          {
+            "type": "int",
+            "name": "capacity"
+          }
+        ]
+      },
+      {
+        "name": "get",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "int",
+            "name": "key"
+          }
+        ]
+      },
+      {
+        "name": "put",
+        "returnType": "void",
+        "params": [
+          {
+            "type": "int",
+            "name": "key"
+          },
+          {
+            "type": "int",
+            "name": "value"
+          }
+        ]
+      }
+    ]
+  },
+  "binary-tree-inorder-traversal": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "inorderTraversal",
+        "returnType": "vector<int>",
+        "params": [
+          {
+            "type": "TreeNode*",
+            "name": "root"
+          }
+        ]
+      }
+    ]
+  },
+  "maximum-depth-of-binary-tree": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "maxDepth",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "TreeNode*",
+            "name": "root"
+          }
+        ]
+      }
+    ]
+  },
+  "invert-binary-tree": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "invertTree",
+        "returnType": "TreeNode*",
+        "params": [
+          {
+            "type": "TreeNode*",
+            "name": "root"
+          }
+        ]
+      }
+    ]
+  },
+  "symmetric-tree": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "isSymmetric",
+        "returnType": "bool",
+        "params": [
+          {
+            "type": "TreeNode*",
+            "name": "root"
+          }
+        ]
+      }
+    ]
+  },
+  "diameter-of-binary-tree": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "diameterOfBinaryTree",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "TreeNode*",
+            "name": "root"
+          }
+        ]
+      }
+    ]
+  },
+  "binary-tree-level-order-traversal": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "levelOrder",
+        "returnType": "vector<vector<int>>",
+        "params": [
+          {
+            "type": "TreeNode*",
+            "name": "root"
+          }
+        ]
+      }
+    ]
+  },
+  "convert-sorted-array-to-binary-search-tree": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "sortedArrayToBST",
+        "returnType": "TreeNode*",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "validate-binary-search-tree": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "isValidBST",
+        "returnType": "bool",
+        "params": [
+          {
+            "type": "TreeNode*",
+            "name": "root"
+          }
+        ]
+      }
+    ]
+  },
+  "kth-smallest-element-in-a-bst": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "kthSmallest",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "TreeNode*",
+            "name": "root"
+          },
+          {
+            "type": "int",
+            "name": "k"
+          }
+        ]
+      }
+    ]
+  },
+  "binary-tree-right-side-view": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "rightSideView",
+        "returnType": "vector<int>",
+        "params": [
+          {
+            "type": "TreeNode*",
+            "name": "root"
+          }
+        ]
+      }
+    ]
+  },
+  "flatten-binary-tree-to-linked-list": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "flatten",
+        "returnType": "void",
+        "params": [
+          {
+            "type": "TreeNode*",
+            "name": "root"
+          }
+        ]
+      }
+    ]
+  },
+  "construct-binary-tree-from-preorder-and-inorder-traversal": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "buildTree",
+        "returnType": "TreeNode*",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "preorder"
+          },
+          {
+            "type": "vector<int>&",
+            "name": "inorder"
+          }
+        ]
+      }
+    ]
+  },
+  "path-sum-iii": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "pathSum",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "TreeNode*",
+            "name": "root"
+          },
+          {
+            "type": "int",
+            "name": "targetSum"
+          }
+        ]
+      }
+    ]
+  },
+  "lowest-common-ancestor-of-a-binary-tree": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "lowestCommonAncestor",
+        "returnType": "TreeNode*",
+        "params": [
+          {
+            "type": "TreeNode*",
+            "name": "root"
+          },
+          {
+            "type": "TreeNode*",
+            "name": "p"
+          },
+          {
+            "type": "TreeNode*",
+            "name": "q"
+          }
+        ]
+      }
+    ]
+  },
+  "binary-tree-maximum-path-sum": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "maxPathSum",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "TreeNode*",
+            "name": "root"
+          }
+        ]
+      }
+    ]
+  },
+  "number-of-islands": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "numIslands",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<vector<char>>&",
+            "name": "grid"
+          }
+        ]
+      }
+    ]
+  },
+  "rotting-oranges": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "orangesRotting",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<vector<int>>&",
+            "name": "grid"
+          }
+        ]
+      }
+    ]
+  },
+  "course-schedule": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "canFinish",
+        "returnType": "bool",
+        "params": [
+          {
+            "type": "int",
+            "name": "numCourses"
+          },
+          {
+            "type": "vector<vector<int>>&",
+            "name": "prerequisites"
+          }
+        ]
+      }
+    ]
+  },
+  "implement-trie-prefix-tree": {
+    "className": "Trie",
+    "kind": "design",
+    "methods": [
+      {
+        "name": "Trie",
+        "returnType": null,
+        "params": []
+      },
+      {
+        "name": "insert",
+        "returnType": "void",
+        "params": [
+          {
+            "type": "string",
+            "name": "word"
+          }
+        ]
+      },
+      {
+        "name": "search",
+        "returnType": "bool",
+        "params": [
+          {
+            "type": "string",
+            "name": "word"
+          }
+        ]
+      },
+      {
+        "name": "startsWith",
+        "returnType": "bool",
+        "params": [
+          {
+            "type": "string",
+            "name": "prefix"
+          }
+        ]
+      }
+    ]
+  },
+  "permutations": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "permute",
+        "returnType": "vector<vector<int>>",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "subsets": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "subsets",
+        "returnType": "vector<vector<int>>",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "letter-combinations-of-a-phone-number": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "letterCombinations",
+        "returnType": "vector<string>",
+        "params": [
+          {
+            "type": "string",
+            "name": "digits"
+          }
+        ]
+      }
+    ]
+  },
+  "combination-sum": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "combinationSum",
+        "returnType": "vector<vector<int>>",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "candidates"
+          },
+          {
+            "type": "int",
+            "name": "target"
+          }
+        ]
+      }
+    ]
+  },
+  "generate-parentheses": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "generateParenthesis",
+        "returnType": "vector<string>",
+        "params": [
+          {
+            "type": "int",
+            "name": "n"
+          }
+        ]
+      }
+    ]
+  },
+  "word-search": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "exist",
+        "returnType": "bool",
+        "params": [
+          {
+            "type": "vector<vector<char>>&",
+            "name": "board"
+          },
+          {
+            "type": "string",
+            "name": "word"
+          }
+        ]
+      }
+    ]
+  },
+  "palindrome-partitioning": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "partition",
+        "returnType": "vector<vector<string>>",
+        "params": [
+          {
+            "type": "string",
+            "name": "s"
+          }
+        ]
+      }
+    ]
+  },
+  "n-queens": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "solveNQueens",
+        "returnType": "vector<vector<string>>",
+        "params": [
+          {
+            "type": "int",
+            "name": "n"
+          }
+        ]
+      }
+    ]
+  },
+  "search-insert-position": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "searchInsert",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          },
+          {
+            "type": "int",
+            "name": "target"
+          }
+        ]
+      }
+    ]
+  },
+  "search-a-2d-matrix": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "searchMatrix",
+        "returnType": "bool",
+        "params": [
+          {
+            "type": "vector<vector<int>>&",
+            "name": "matrix"
+          },
+          {
+            "type": "int",
+            "name": "target"
+          }
+        ]
+      }
+    ]
+  },
+  "find-first-and-last-position-of-element-in-sorted-array": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "searchRange",
+        "returnType": "vector<int>",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          },
+          {
+            "type": "int",
+            "name": "target"
+          }
+        ]
+      }
+    ]
+  },
+  "search-in-rotated-sorted-array": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "search",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          },
+          {
+            "type": "int",
+            "name": "target"
+          }
+        ]
+      }
+    ]
+  },
+  "find-minimum-in-rotated-sorted-array": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "findMin",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "median-of-two-sorted-arrays": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "findMedianSortedArrays",
+        "returnType": "double",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums1"
+          },
+          {
+            "type": "vector<int>&",
+            "name": "nums2"
+          }
+        ]
+      }
+    ]
+  },
+  "valid-parentheses": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "isValid",
+        "returnType": "bool",
+        "params": [
+          {
+            "type": "string",
+            "name": "s"
+          }
+        ]
+      }
+    ]
+  },
+  "min-stack": {
+    "className": "MinStack",
+    "kind": "design",
+    "methods": [
+      {
+        "name": "MinStack",
+        "returnType": null,
+        "params": []
+      },
+      {
+        "name": "push",
+        "returnType": "void",
+        "params": [
+          {
+            "type": "int",
+            "name": "val"
+          }
+        ]
+      },
+      {
+        "name": "pop",
+        "returnType": "void",
+        "params": []
+      },
+      {
+        "name": "top",
+        "returnType": "int",
+        "params": []
+      },
+      {
+        "name": "getMin",
+        "returnType": "int",
+        "params": []
+      }
+    ]
+  },
+  "decode-string": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "decodeString",
+        "returnType": "string",
+        "params": [
+          {
+            "type": "string",
+            "name": "s"
+          }
+        ]
+      }
+    ]
+  },
+  "daily-temperatures": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "dailyTemperatures",
+        "returnType": "vector<int>",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "temperatures"
+          }
+        ]
+      }
+    ]
+  },
+  "largest-rectangle-in-histogram": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "largestRectangleArea",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "heights"
+          }
+        ]
+      }
+    ]
+  },
+  "kth-largest-element-in-an-array": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "findKthLargest",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          },
+          {
+            "type": "int",
+            "name": "k"
+          }
+        ]
+      }
+    ]
+  },
+  "top-k-frequent-elements": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "topKFrequent",
+        "returnType": "vector<int>",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          },
+          {
+            "type": "int",
+            "name": "k"
+          }
+        ]
+      }
+    ]
+  },
+  "find-median-from-data-stream": {
+    "className": "MedianFinder",
+    "kind": "design",
+    "methods": [
+      {
+        "name": "MedianFinder",
+        "returnType": null,
+        "params": []
+      },
+      {
+        "name": "addNum",
+        "returnType": "void",
+        "params": [
+          {
+            "type": "int",
+            "name": "num"
+          }
+        ]
+      },
+      {
+        "name": "findMedian",
+        "returnType": "double",
+        "params": []
+      }
+    ]
+  },
+  "best-time-to-buy-and-sell-stock": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "maxProfit",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "prices"
+          }
+        ]
+      }
+    ]
+  },
+  "jump-game": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "canJump",
+        "returnType": "bool",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "jump-game-ii": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "jump",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "partition-labels": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "partitionLabels",
+        "returnType": "vector<int>",
+        "params": [
+          {
+            "type": "string",
+            "name": "s"
+          }
+        ]
+      }
+    ]
+  },
+  "climbing-stairs": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "climbStairs",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "int",
+            "name": "n"
+          }
+        ]
+      }
+    ]
+  },
+  "pascals-triangle": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "generate",
+        "returnType": "vector<vector<int>>",
+        "params": [
+          {
+            "type": "int",
+            "name": "numRows"
+          }
+        ]
+      }
+    ]
+  },
+  "house-robber": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "rob",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "perfect-squares": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "numSquares",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "int",
+            "name": "n"
+          }
+        ]
+      }
+    ]
+  },
+  "coin-change": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "coinChange",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "coins"
+          },
+          {
+            "type": "int",
+            "name": "amount"
+          }
+        ]
+      }
+    ]
+  },
+  "word-break": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "wordBreak",
+        "returnType": "bool",
+        "params": [
+          {
+            "type": "string",
+            "name": "s"
+          },
+          {
+            "type": "vector<string>&",
+            "name": "wordDict"
+          }
+        ]
+      }
+    ]
+  },
+  "longest-increasing-subsequence": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "lengthOfLIS",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "maximum-product-subarray": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "maxProduct",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "partition-equal-subset-sum": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "canPartition",
+        "returnType": "bool",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "longest-valid-parentheses": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "longestValidParentheses",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "string",
+            "name": "s"
+          }
+        ]
+      }
+    ]
+  },
+  "unique-paths": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "uniquePaths",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "int",
+            "name": "m"
+          },
+          {
+            "type": "int",
+            "name": "n"
+          }
+        ]
+      }
+    ]
+  },
+  "minimum-path-sum": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "minPathSum",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<vector<int>>&",
+            "name": "grid"
+          }
+        ]
+      }
+    ]
+  },
+  "longest-palindromic-substring": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "longestPalindrome",
+        "returnType": "string",
+        "params": [
+          {
+            "type": "string",
+            "name": "s"
+          }
+        ]
+      }
+    ]
+  },
+  "longest-common-subsequence": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "longestCommonSubsequence",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "string",
+            "name": "text1"
+          },
+          {
+            "type": "string",
+            "name": "text2"
+          }
+        ]
+      }
+    ]
+  },
+  "edit-distance": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "minDistance",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "string",
+            "name": "word1"
+          },
+          {
+            "type": "string",
+            "name": "word2"
+          }
+        ]
+      }
+    ]
+  },
+  "single-number": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "singleNumber",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "majority-element": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "majorityElement",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "sort-colors": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "sortColors",
+        "returnType": "void",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "next-permutation": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "nextPermutation",
+        "returnType": "void",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  },
+  "find-the-duplicate-number": {
+    "className": "Solution",
+    "kind": "solution",
+    "methods": [
+      {
+        "name": "findDuplicate",
+        "returnType": "int",
+        "params": [
+          {
+            "type": "vector<int>&",
+            "name": "nums"
+          }
+        ]
+      }
+    ]
+  }
+}

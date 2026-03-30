@@ -4,6 +4,7 @@ import { ModeSupport } from "./types";
 
 type ProblemListRow = {
   id: string;
+  leetcodeId: number | null;
   slug: string;
   title: string;
   difficulty: "Easy" | "Medium" | "Hard";
@@ -30,13 +31,14 @@ export class ProblemsController {
       `
         SELECT
           id,
+          leetcode_id AS "leetcodeId",
           slug,
           title,
           difficulty,
           tags,
           mode_support AS "modeSupport"
         FROM problems
-        ORDER BY created_at ASC;
+        ORDER BY COALESCE(leetcode_id, 2147483647) ASC, created_at ASC;
       `
     );
 
@@ -51,6 +53,7 @@ export class ProblemsController {
       `
         SELECT
           id,
+          leetcode_id AS "leetcodeId",
           slug,
           title,
           difficulty,

@@ -7,6 +7,7 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "check": "tsc --noEmit",
+    "test": "node --test -r ts-node/register/transpile-only src/**/*.test.ts",
     "db:migrate": "ts-node -P tsconfig.scripts.json scripts/db/migrate.ts",
     "db:seed": "ts-node -P tsconfig.scripts.json scripts/db/seed.ts",
     "db:setup": "npm run db:migrate && npm run db:seed"

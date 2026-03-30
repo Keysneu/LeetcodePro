@@ -1,4 +1,7 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 const DEFAULT_EXECUTOR_MODE = "docker";
 const DEFAULT_CPP_IMAGE = "gcc:13-bookworm";
@@ -8,8 +11,16 @@ const DEFAULT_CPU_LIMIT = "1.0";
 const DEFAULT_PIDS_LIMIT = "64";
 const DEFAULT_TMPFS_SIZE = "64m";
 const DEFAULT_CONTAINER_USER = "65534:65534";
-const MAX_OUTPUT_LENGTH = 16 * 1024;
+const DEFAULT_MAX_OUTPUT_LENGTH = 1024 * 1024;
+const configuredMaxOutputLength = Number(process.env.JUDGE_MAX_OUTPUT_LENGTH ?? DEFAULT_MAX_OUTPUT_LENGTH);
+const MAX_OUTPUT_LENGTH =
+  Number.isFinite(configuredMaxOutputLength) && configuredMaxOutputLength > 0
+    ? Math.floor(configuredMaxOutputLength)
+    : DEFAULT_MAX_OUTPUT_LENGTH;
 const verifiedDockerImages = new Set();
+const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(MODULE_DIR, "..", "..", "..");
+const BUILTIN_SECCOMP_PROFILE = path.join(REPO_ROOT, "infra", "seccomp", "judge-seccomp.json");
 
 function appendLimited(base, chunk) {
   if (base.length >= MAX_OUTPUT_LENGTH) {
@@ -42,8 +53,32 @@ function getDockerImage(language) {
   return process.env.JUDGE_DOCKER_CPP_IMAGE ?? DEFAULT_CPP_IMAGE;
 }
 
+function resolveSeccompProfilePath() {
+  const configured = process.env.JUDGE_DOCKER_SECCOMP_PROFILE;
+  const disabledValues = new Set(["off", "none", "false"]);
+
+  if (configured !== undefined) {
+    const trimmed = configured.trim();
+    if (trimmed.length === 0) {
+      return existsSync(BUILTIN_SECCOMP_PROFILE) ? BUILTIN_SECCOMP_PROFILE : null;
+    }
+
+    if (disabledValues.has(trimmed.toLowerCase())) {
+      return null;
+    }
+
+    if (path.isAbsolute(trimmed)) {
+      return trimmed;
+    }
+
+    return path.resolve(process.cwd(), trimmed);
+  }
+
+  return existsSync(BUILTIN_SECCOMP_PROFILE) ? BUILTIN_SECCOMP_PROFILE : null;
+}
+
 function buildDockerArgs(options, image) {
-  const seccompProfile = process.env.JUDGE_DOCKER_SECCOMP_PROFILE;
+  const seccompProfile = resolveSeccompProfilePath();
 
   const args = [
     "run",
@@ -251,4 +286,8 @@ export async function runSandboxCommand(options) {
 
 export function getSandboxExecutionMode() {
   return getExecutorMode();
+}
+
+export function getSandboxSeccompProfile() {
+  return resolveSeccompProfilePath();
 }

@@ -3,11 +3,22 @@ import { AppModule } from "./app.module";
 import { closeDbPool } from "./db";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  const bodyParser = require("body-parser") as {
+    json: (options: { limit: string }) => (req: unknown, res: unknown, next: () => void) => void;
+    urlencoded: (options: { extended: boolean; limit: string }) => (req: unknown, res: unknown, next: () => void) => void;
+  };
   const port = Number(process.env.API_PORT ?? 3001);
   const corsOrigin = process.env.API_CORS_ORIGIN ?? "http://localhost:3000";
 
   app.setGlobalPrefix("api");
+  app.use(bodyParser.json({ limit: "4mb" }));
+  app.use(
+    bodyParser.urlencoded({
+      extended: true,
+      limit: "4mb"
+    })
+  );
   app.enableCors({
     origin: corsOrigin
   });

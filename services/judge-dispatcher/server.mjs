@@ -3,7 +3,7 @@ import amqp from "amqplib";
 import pg from "pg";
 
 import { judgeSubmissionWithCases } from "./src/judge-executor.mjs";
-import { getSandboxExecutionMode } from "./src/sandbox-runner.mjs";
+import { getSandboxExecutionMode, getSandboxSeccompProfile } from "./src/sandbox-runner.mjs";
 
 const { Pool } = pg;
 
@@ -286,6 +286,7 @@ const server = createServer((req, res) => {
         service: "judge-dispatcher",
         status: ready ? "ok" : "degraded",
         executionMode: getSandboxExecutionMode(),
+        seccompProfile: getSandboxSeccompProfile(),
         queueName,
         lastConsumedAt,
         lastError
