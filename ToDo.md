@@ -1,6 +1,6 @@
 # LeetCodePro MVP 开发 ToDo
 
-更新时间：2026-03-30（Asia/Shanghai）
+更新时间：2026-03-31（Asia/Shanghai）
 
 状态约定：
 - `[ ]` 未开始
@@ -9,7 +9,7 @@
 
 ## 1. 当前目标（MVP 第一阶段）
 
-优先跑通完整主流程：`做题 -> 判题 -> AI点评`  
+优先跑通完整主流程：`做题 -> 判题 -> AI 找 Bug`  
 范围聚焦 V1.0，不扩展推荐系统和社区功能。
 
 ## 2. 当前进度总览
@@ -24,7 +24,7 @@
 - [x] 前端题目页（题面/编辑器/提交）
 - [/] 后端核心 API（题目、提交、结果查询、后台判题数据）
 - [/] 判题链路（入队、执行、回写）
-- [/] AI 点评链路（基于提交结果的诊断）
+- [/] AI 找 Bug 链路（基于提交结果的诊断）
 - [/] 端到端联调与验收
 
 ## 3. P0 任务清单（按执行顺序）
@@ -72,21 +72,21 @@
 - [x] 支持核心模式与 ACM 模式的统一结果返回
 - [x] 完成 Hot100 全题核心判题适配（解法题 + 设计题，C++/Python）
 
-### P0-5 AI 点评链路
-- [x] 前端“求助 AI”入口
+### P0-5 AI 找 Bug 链路
+- [x] 前端“AI 找 Bug”入口
 - [/] API 聚合上下文（题目 + 用户代码 + 失败样例 + 错误信息）
-- [x] AI Tutor 接入 vLLM（`LLM_PROVIDER=vllm` + OpenAI 兼容接口）
+- [x] AI Tutor 接入远程大模型（`vLLM/MiniMax` 可切换，OpenAI 兼容接口）
 - [x] AI 服务返回诊断（SSE 流式）
 - [x] 落库 AI 会话与消息记录（`ai_sessions`、`ai_messages`）
 - [x] 题解支持个人 Markdown 笔记：上传、题目自动映射、按题展示
 
 验收标准：
 - [x] WA/TLE 时可拿到可读的定位建议
-- [x] 回复风格符合“引导式提示，不直接给完整答案”
+- [x] 回复风格符合“直接定位问题 + 证据支撑，不直接给完整答案”
 - [x] 用户点击“题解”可直接查看当前题目匹配到的个人笔记内容
 
 ### P0-6 E2E 联调与验收
-- [x] 编写最小端到端脚本：`题目查询 -> 提交 -> 判题 -> AI点评`（`scripts/e2e/minimal-flow.mjs`）
+- [x] 编写最小端到端脚本：`题目查询 -> 提交 -> 判题 -> AI 找 Bug`（`scripts/e2e/minimal-flow.mjs`）
 - [x] 补充关键日志与错误码（阶段日志 + 退出码 + 超时依赖诊断）
 - [x] 输出 MVP 演示脚本（供产品验收）
 - [x] 输出连续 10 次稳定性验收脚本（`scripts/e2e/stability-acceptance.mjs`）
@@ -120,17 +120,33 @@
 - [x] 为容器冷启动增加超时宽限配置（`JUDGE_SANDBOX_STARTUP_GRACE_MS`）
 - [x] 修复 Docker stdin 传递（`docker run -i`），消除 Python 误判超时
 - [x] 增加镜像存在性预检查，缺失时快速返回可操作错误提示
-- [x] 新增最小 E2E 联调脚本（`npm run e2e:minimal`），覆盖题目查询/提交/判题/AI点评全链路
+- [x] 新增最小 E2E 联调脚本（`npm run e2e:minimal`），覆盖题目查询/提交/判题/AI 找 Bug 全链路
 - [x] E2E 脚本补充关键日志/退出码/依赖健康检查，失败时输出 Judge/AI 诊断快照
+
+### 2026-03-31
+- [x] AI 找 Bug 专家化改版：放宽过度格式约束与强制回写逻辑，改为“直接定位问题 + 明确修改点 + 快速验证”，仅保留“禁止整题完整答案”最小红线
+- [x] AI 找 Bug 兜底文案统一升级：`ai-tutor-fallback` 与 `api-fallback` 都输出直接定位与可执行修改建议，避免固定模板套话
+- [x] README/ToDo 同步更新本次 AI 找 Bug 验证预期与排查说明
+- [x] 修复 AI 找 Bug 输出截断：API/前端 SSE 增强尾包解析，流式未完成时自动补一次同步请求，确保展示完整内容
+- [x] AI 找 Bug 状态分流：`AC` 返回“通过后优化评审”（复杂度/规范/边界），非 `AC` 返回“错误定位 + 修改建议”
+- [x] AI 找 Bug 面板交互优化：固定高度显示 + 滚轮滚动查看完整输出，避免长文本挤压布局
+- [x] 修复 AI 题解 MiniMax 流式稳定性：题解前端 SSE 解析增强（支持 CRLF/尾包补齐），疑似截断时自动同步补齐
+- [x] AI 找 Bug 布局重构：参考题解展示方案放大为右侧主区域，头部展示模型/Provider/来源，正文固定高度滚动
+- [x] AI 找 Bug 抗截断增强：MiniMax 默认二次同步补齐 + bug-find 专用超时（`AI_TUTOR_REVIEW_TIMEOUT_MS`）+ review token 上限提升
+- [x] 修复 AI 题解 MiniMax 套话回退：题解路径新增一次应用层补偿重试，降低 `source=ai-tutor-fallback` 概率
+- [x] 移除 AI 题解模板兜底：MiniMax 失败时直接错误提示（HTTP 502 / SSE error），前端不再展示套话题解
+- [x] 修复 AI 题解 `api-error/Abort`：API 增加题解专用超时配置（`AI_TUTOR_SOLUTION_MINIMAX_TIMEOUT_MS`），并将 Abort 显式映射为“题解请求超时”提示
+- [x] 修复 AI 题解错误透传：API/前端统一归一化 `This operation was aborted`/timeout 类错误，改为中文可读提示，避免原始英文暴露
+- [x] 提升 AI 找 Bug 输出上限：新增 `VLLM_REVIEW_MAX_TOKENS` / `MINIMAX_REVIEW_MAX_TOKENS`（默认 `2200/3000`），避免 review 文本被 token 上限截断
 
 ### 2026-03-30
 - [x] 前端题库页切换为 API 拉取（去除静态占位题单）
 - [x] 题目详情页切换为 API 题面/样例渲染（去除静态占位题面）
 - [x] 打通前端真实提交按钮：`POST /api/submissions` + 轮询 `GET /api/submissions/:id`
-- [x] 打通前端“求助 AI”按钮：`POST /api/ai/review` 并展示 guidance/source
+- [x] 打通前端“AI 找 Bug”按钮：`POST /api/ai/bug-find` 并展示 guidance/source
 - [x] README 增补“前端页面实测步骤 + QUEUED 排查”说明
 - [x] 修复 Judge 镜像缺失缓存问题（拉取镜像后无需重启即可重新判题）
-- [x] AI Tutor 新增 `POST /review/stream`，API 新增 `POST /api/ai/review/stream` 并完成前端 SSE 渲染
+- [x] AI Tutor 新增 `POST /bug-find/stream`，API 新增 `POST /api/ai/bug-find/stream` 并完成前端 SSE 渲染
 - [x] 新增数据库迁移 `002_add_ai_sessions_and_messages.sql`，打通 `ai_sessions` / `ai_messages` 落库
 - [x] 新增内置 seccomp profile：`infra/seccomp/judge-seccomp.json`，Judge `/health` 增加 `seccompProfile`
 - [x] `minimal-flow` 升级支持 `--ai-review-mode stream|sync`
@@ -140,6 +156,16 @@
 - [x] 实机验收：`npm run demo:mvp` 两个演示场景通过（`AC`/`WA`）
 - [x] AI Tutor 接入远程 vLLM 配置（`VLLM_BASE_URL` / `VLLM_API_KEY` / `VLLM_MODEL` / `CHAT_TEMPLATE_TYPE`）
 - [x] AI 服务新增 provider 健康字段与 vLLM 故障自动回退（`source=ai-tutor-fallback`）
+- [x] 新增 AI provider 按请求切换：前端可选 `vLLM/MiniMax`，API/AI Tutor 全链路透传并回显 `provider`
+- [x] 修复 MiniMax 点评“固定套话”问题：保留诊断文本并仅打码代码片段（避免整段回退为固定三问）
+- [x] 修复 MiniMax 经 API 代理超时回退：新增 `AI_TUTOR_MINIMAX_TIMEOUT_MS` 并按 provider 使用差异化超时
+- [x] 修复 MiniMax 直连读超时回退：`MINIMAX_TIMEOUT_SECONDS` 默认提升到 60s，并增加读超时二次重试
+- [x] 修复 MiniMax 题解流式仍回退模板：API 代理超时默认提升至 `AI_TUTOR_MINIMAX_TIMEOUT_MS=90000`
+- [x] 修复 MiniMax 题解体验：清理 `<think>` 推理块、默认 `MINIMAX_SOLUTION_MAX_TOKENS=3000`、前端题解切换为 Markdown 渲染
+- [x] 增强 MiniMax 网络稳定性：AI Tutor 对 `TransportError`（ReadTimeout/RemoteProtocolError 等）自动重试
+- [x] AI 找 Bug 质量升级：API 自动注入提交运行信号（语言/模式/通过率/失败信号），AI Tutor 要求证据化诊断，前端点评区改为 Markdown 渲染
+- [x] AI 找 Bug 风格重构：从“引导式套话”切换为“代码审查式定位”（错误结论+证据+修复方向）
+- [x] AI 找 Bug 兜底升级：无论 `ai-tutor-fallback` 还是 `api-fallback`，都基于代码与报错输出“行号级”可疑点定位
 - [x] 前端样式升级为 LeetCode 风格：统一设计 token、重构顶部导航、题库表格化列表、做题页题面/编辑区布局与状态控件样式
 - [x] 前端验收通过：`npm run check -w @leetcodepro/web`、`npm run build -w @leetcodepro/web`（构建阶段仅提示 ESLint 未安装，不阻塞产物输出）
 - [x] 修复前端 chunk 缓存串扰：开发/生产构建目录隔离（`.next-dev` / `.next`）并补充 `npm run clean -w @leetcodepro/web`

@@ -3,6 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import {
+  AI_PROVIDER_SYNC_EVENT,
+  AiProvider,
+  aiProviderLabel,
+  getDefaultAiProvider,
+  readPreferredAiProvider,
+  savePreferredAiProvider
+} from "@/lib/ai-provider";
 
 type ProblemDetail = {
   leetcodeId: number | null;
@@ -43,14 +51,18 @@ type SubmissionHistoryResponse = {
 type SolutionResponse = {
   editorial?: string;
   source?: string;
+  provider?: string;
   sessionId?: string | null;
 };
 
 type SolutionSsePayload = {
   sessionId?: string;
   source?: string;
+  provider?: string;
   delta?: string;
   editorial?: string;
+  error?: string;
+  message?: string;
 };
 
 type ProblemNoteItem = {
@@ -93,6 +105,37 @@ function parseErrorMessage(payload: unknown): string {
   return "请求失败，请稍后重试。";
 }
 
+function normalizeSolutionErrorMessage(message: string, provider: AiProvider): string {
+  const providerLabel = aiProviderLabel(provider);
+  const fallback = `${providerLabel} 题解生成失败，请稍后重试。`;
+  const timeoutMessage = `${providerLabel} 题解请求超时，请稍后重试。`;
+  const normalized = message.trim().toLowerCase();
+
+  if (normalized.length === 0) {
+    return fallback;
+  }
+
+  const timeoutSignals = [
+    "aborterror",
+    "aborted",
+    "operation was aborted",
+    "timeout",
+    "timed out",
+    "etimedout",
+    "deadline exceeded"
+  ];
+
+  if (timeoutSignals.some((item) => normalized.includes(item))) {
+    return timeoutMessage;
+  }
+
+  if (message.includes("题解") || message.includes("超时") || message.includes("稍后重试")) {
+    return message;
+  }
+
+  return fallback;
+}
+
 function parseSseBlock(block: string): { event: string; data: string } | null {
   const lines = block.split(/\r?\n/);
   let event = "message";
@@ -126,6 +169,27 @@ function parseSsePayload(raw: string): SolutionSsePayload {
   }
 
   return { delta: raw };
+}
+
+function findSseBoundary(buffer: string): { index: number; separatorLength: number } | null {
+  const lfBoundary = buffer.indexOf("\n\n");
+  const crlfBoundary = buffer.indexOf("\r\n\r\n");
+
+  if (lfBoundary < 0 && crlfBoundary < 0) {
+    return null;
+  }
+
+  if (lfBoundary < 0) {
+    return { index: crlfBoundary, separatorLength: 4 };
+  }
+
+  if (crlfBoundary < 0) {
+    return { index: lfBoundary, separatorLength: 2 };
+  }
+
+  return lfBoundary < crlfBoundary
+    ? { index: lfBoundary, separatorLength: 2 }
+    : { index: crlfBoundary, separatorLength: 4 };
 }
 
 function normalizeProblemMarkdown(markdown: string): string {
@@ -190,8 +254,10 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
   const [solutionError, setSolutionError] = useState<string | null>(null);
   const [solutionText, setSolutionText] = useState("");
   const [solutionSource, setSolutionSource] = useState("");
+  const [solutionResolvedProvider, setSolutionResolvedProvider] = useState("");
   const [solutionSessionId, setSolutionSessionId] = useState("");
   const [solutionLoaded, setSolutionLoaded] = useState(false);
+  const [aiProvider, setAiProvider] = useState<AiProvider>(() => getDefaultAiProvider());
   const descriptionMarkdown = useMemo(() => normalizeProblemMarkdown(problem.description), [problem.description]);
 
   const tabTitle = useMemo(() => {
@@ -220,9 +286,28 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
     setSolutionError(null);
     setSolutionText("");
     setSolutionSource("");
+    setSolutionResolvedProvider("");
     setSolutionSessionId("");
     setSolutionLoaded(false);
+    setAiProvider(readPreferredAiProvider());
   }, [problem.slug]);
+
+  useEffect(() => {
+    const syncProvider = () => {
+      setAiProvider(readPreferredAiProvider());
+    };
+
+    syncProvider();
+    window.addEventListener(AI_PROVIDER_SYNC_EVENT, syncProvider);
+    return () => {
+      window.removeEventListener(AI_PROVIDER_SYNC_EVENT, syncProvider);
+    };
+  }, []);
+
+  const handleProviderChange = useCallback((nextProvider: AiProvider) => {
+    setAiProvider(nextProvider);
+    savePreferredAiProvider(nextProvider);
+  }, []);
 
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
@@ -278,6 +363,7 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
     setSolutionError(null);
     setSolutionText("");
     setSolutionSource("");
+    setSolutionResolvedProvider("");
     setSolutionSessionId("");
 
     try {
@@ -290,6 +376,7 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
           problemSlug: problem.slug,
           problemTitle: problem.title,
           modeSupport: problem.modeSupport,
+          provider: aiProvider,
           preferredLanguage: "cpp",
           description: problem.description,
           sampleInput: problem.sampleInput,
@@ -299,13 +386,101 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
 
       if (!response.ok || !response.body) {
         const fallbackPayload = (await response.json().catch(() => null)) as unknown;
-        throw new Error(parseErrorMessage(fallbackPayload));
+        throw new Error(normalizeSolutionErrorMessage(parseErrorMessage(fallbackPayload), aiProvider));
       }
 
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
       let editorial = "";
+      let doneReceived = false;
+      let streamError = "";
+
+      const applyFrame = (event: string, payload: SolutionSsePayload) => {
+        if (event === "meta") {
+          if (typeof payload.source === "string" && payload.source.length > 0) {
+            setSolutionSource(payload.source);
+          }
+          if (typeof payload.provider === "string" && payload.provider.length > 0) {
+            setSolutionResolvedProvider(payload.provider);
+          }
+          if (typeof payload.sessionId === "string" && payload.sessionId.length > 0) {
+            setSolutionSessionId(payload.sessionId);
+          }
+          return;
+        }
+
+        if (event === "delta") {
+          const delta = typeof payload.delta === "string" ? payload.delta : "";
+          if (delta.length > 0) {
+            editorial += delta;
+            setSolutionText(editorial);
+          }
+          return;
+        }
+
+        if (event === "error") {
+          const rawMessage =
+            (typeof payload.message === "string" && payload.message.length > 0
+              ? payload.message
+              : typeof payload.error === "string" && payload.error.length > 0
+              ? payload.error
+              : "题解生成失败，请稍后重试。");
+          const message = normalizeSolutionErrorMessage(rawMessage, aiProvider);
+          streamError = message;
+          setSolutionError(message);
+          if (typeof payload.source === "string" && payload.source.length > 0) {
+            setSolutionSource(payload.source);
+          }
+          if (typeof payload.provider === "string" && payload.provider.length > 0) {
+            setSolutionResolvedProvider(payload.provider);
+          }
+          if (typeof payload.sessionId === "string" && payload.sessionId.length > 0) {
+            setSolutionSessionId(payload.sessionId);
+          }
+          return;
+        }
+
+        if (event === "done") {
+          doneReceived = true;
+          if (typeof payload.editorial === "string" && payload.editorial.length > 0) {
+            editorial = payload.editorial;
+            setSolutionText(editorial);
+          }
+          if (typeof payload.error === "string" && payload.error.length > 0) {
+            const message = normalizeSolutionErrorMessage(payload.error, aiProvider);
+            streamError = message;
+            setSolutionError(message);
+          }
+          if (typeof payload.source === "string" && payload.source.length > 0) {
+            setSolutionSource(payload.source);
+          }
+          if (typeof payload.provider === "string" && payload.provider.length > 0) {
+            setSolutionResolvedProvider(payload.provider);
+          }
+          if (typeof payload.sessionId === "string" && payload.sessionId.length > 0) {
+            setSolutionSessionId(payload.sessionId);
+          }
+        }
+      };
+
+      const consumeBuffer = () => {
+        while (true) {
+          const boundary = findSseBoundary(buffer);
+          if (!boundary) {
+            break;
+          }
+
+          const rawBlock = buffer.slice(0, boundary.index);
+          buffer = buffer.slice(boundary.index + boundary.separatorLength);
+          const frame = parseSseBlock(rawBlock);
+          if (!frame) {
+            continue;
+          }
+
+          applyFrame(frame.event, parseSsePayload(frame.data));
+        }
+      };
 
       while (true) {
         const { value, done } = await reader.read();
@@ -314,57 +489,21 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
         }
 
         buffer += decoder.decode(value, { stream: true });
+        consumeBuffer();
+      }
 
-        while (true) {
-          const boundary = buffer.indexOf("\n\n");
-          if (boundary < 0) {
-            break;
-          }
+      buffer += decoder.decode();
+      consumeBuffer();
 
-          const rawBlock = buffer.slice(0, boundary);
-          buffer = buffer.slice(boundary + 2);
-          const frame = parseSseBlock(rawBlock);
-          if (!frame) {
-            continue;
-          }
-
-          const payload = parseSsePayload(frame.data);
-
-          if (frame.event === "meta") {
-            if (typeof payload.source === "string" && payload.source.length > 0) {
-              setSolutionSource(payload.source);
-            }
-            if (typeof payload.sessionId === "string" && payload.sessionId.length > 0) {
-              setSolutionSessionId(payload.sessionId);
-            }
-            continue;
-          }
-
-          if (frame.event === "delta") {
-            const delta = typeof payload.delta === "string" ? payload.delta : "";
-            if (delta.length > 0) {
-              editorial += delta;
-              setSolutionText(editorial);
-            }
-            continue;
-          }
-
-          if (frame.event === "done") {
-            if (typeof payload.editorial === "string" && payload.editorial.length > 0) {
-              editorial = payload.editorial;
-              setSolutionText(editorial);
-            }
-            if (typeof payload.source === "string" && payload.source.length > 0) {
-              setSolutionSource(payload.source);
-            }
-            if (typeof payload.sessionId === "string" && payload.sessionId.length > 0) {
-              setSolutionSessionId(payload.sessionId);
-            }
-          }
+      if (buffer.trim().length > 0) {
+        const tailFrame = parseSseBlock(buffer.trim());
+        if (tailFrame) {
+          applyFrame(tailFrame.event, parseSsePayload(tailFrame.data));
         }
       }
 
-      if (editorial.length === 0) {
+      const shouldFetchFallback = (editorial.length === 0 || !doneReceived) && streamError.length === 0;
+      if (shouldFetchFallback) {
         const fallback = await fetch(`${apiBaseUrl}/api/ai/solution`, {
           method: "POST",
           headers: {
@@ -374,6 +513,7 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
             problemSlug: problem.slug,
             problemTitle: problem.title,
             modeSupport: problem.modeSupport,
+            provider: aiProvider,
             preferredLanguage: "cpp",
             description: problem.description,
             sampleInput: problem.sampleInput,
@@ -382,21 +522,37 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
         });
         const fallbackPayload = (await fallback.json()) as unknown;
         if (!fallback.ok) {
-          throw new Error(parseErrorMessage(fallbackPayload));
+          throw new Error(normalizeSolutionErrorMessage(parseErrorMessage(fallbackPayload), aiProvider));
         }
         const data = fallbackPayload as SolutionResponse;
-        setSolutionText(data.editorial ?? "暂未生成题解，请稍后重试。");
-        setSolutionSource(data.source ?? "");
-        setSolutionSessionId(data.sessionId ?? "");
+        const fallbackEditorial = data.editorial ?? "";
+        let replacedWithFallback = false;
+        if (fallbackEditorial.length > editorial.length) {
+          editorial = fallbackEditorial;
+          setSolutionText(editorial);
+          replacedWithFallback = true;
+        } else if (editorial.length === 0) {
+          setSolutionText("暂未生成题解，请稍后重试。");
+        }
+
+        if (replacedWithFallback && data.source && data.source.length > 0) {
+          setSolutionSource(data.source);
+        }
+        if (replacedWithFallback && data.provider && data.provider.length > 0) {
+          setSolutionResolvedProvider(data.provider);
+        }
+        if (replacedWithFallback && data.sessionId && data.sessionId.length > 0) {
+          setSolutionSessionId(data.sessionId);
+        }
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "题解生成失败，请稍后重试。";
-      setSolutionError(message);
+      setSolutionError(normalizeSolutionErrorMessage(message, aiProvider));
     } finally {
       setSolutionLoading(false);
       setSolutionLoaded(true);
     }
-  }, [apiBaseUrl, problem.description, problem.modeSupport, problem.sampleInput, problem.sampleOutput, problem.slug, problem.title]);
+  }, [aiProvider, apiBaseUrl, problem.description, problem.modeSupport, problem.sampleInput, problem.sampleOutput, problem.slug, problem.title]);
 
   useEffect(() => {
     if (activeTab === "submissions" && !historyLoaded && !historyLoading) {
@@ -559,19 +715,29 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
             <div className="space-y-2 border-t pt-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-[var(--lc-text-muted)]">AI 题解补充（无个人笔记时自动生成，可手动重生成）</p>
-                <button type="button" className="lc-btn-info h-8 px-3 text-xs" onClick={() => void generateSolution()} disabled={solutionLoading}>
-                  {solutionLoading ? "生成中..." : solutionLoaded ? "重新生成" : "生成题解"}
-                </button>
+                <div className="flex items-center gap-2">
+                  <select className="lc-select h-8 min-w-[130px] text-xs" value={aiProvider} onChange={(event) => handleProviderChange(event.target.value as AiProvider)}>
+                    <option value="vllm">vLLM（远程）</option>
+                    <option value="minimax">MiniMax（远程）</option>
+                  </select>
+                  <button type="button" className="lc-btn-info h-8 px-3 text-xs" onClick={() => void generateSolution()} disabled={solutionLoading}>
+                    {solutionLoading ? "生成中..." : solutionLoaded ? "重新生成" : "生成题解"}
+                  </button>
+                </div>
               </div>
 
               <div className="max-h-[34vh] overflow-y-auto rounded-lg border bg-[var(--lc-surface-soft)] p-3">
                 {solutionText ? (
-                  <pre className="whitespace-pre-wrap text-sm leading-7 text-[var(--lc-text)]">{solutionText}</pre>
+                  <div className="lc-markdown text-sm text-[var(--lc-text)]">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{solutionText}</ReactMarkdown>
+                  </div>
                 ) : (
                   <p className="text-sm text-[var(--lc-text-muted)]">点击“生成题解”后可查看 AI 补充讲解。</p>
                 )}
               </div>
 
+              <p className="text-xs text-[var(--lc-text-muted)]">模型：{aiProviderLabel(aiProvider)}</p>
+              {solutionResolvedProvider ? <p className="text-xs text-[var(--lc-text-muted)]">实际 Provider：{solutionResolvedProvider}</p> : null}
               {solutionSource ? <p className="text-xs text-[var(--lc-text-muted)]">来源：{solutionSource}</p> : null}
               {solutionSessionId ? <p className="font-mono text-xs text-[var(--lc-text-muted)]">会话：{solutionSessionId}</p> : null}
               {solutionError ? <p className="text-sm text-[var(--lc-danger)]">{solutionError}</p> : null}

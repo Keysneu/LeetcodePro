@@ -38,15 +38,14 @@ type SubmissionRow = {
   status: SubmissionStatus;
   runtimeMs: number | null;
   memoryKb: number | null;
+  passedCount: number;
+  totalCount: number;
   errorMessage: string | null;
   createdAt: string;
   updatedAt: string;
 };
 
-type SubmissionHistoryRow = Omit<SubmissionRow, "code"> & {
-  passedCount: number;
-  totalCount: number;
-};
+type SubmissionHistoryRow = Omit<SubmissionRow, "code">;
 
 type UserRow = {
   id: string;
@@ -114,6 +113,8 @@ export class SubmissionsController {
           status,
           runtime_ms AS "runtimeMs",
           memory_kb AS "memoryKb",
+          passed_count AS "passedCount",
+          total_count AS "totalCount",
           error_message AS "errorMessage",
           created_at::text AS "createdAt",
           updated_at::text AS "updatedAt";
@@ -161,6 +162,8 @@ export class SubmissionsController {
           submissions.status,
           submissions.runtime_ms AS "runtimeMs",
           submissions.memory_kb AS "memoryKb",
+          submissions.passed_count AS "passedCount",
+          submissions.total_count AS "totalCount",
           submissions.error_message AS "errorMessage",
           submissions.created_at::text AS "createdAt",
           submissions.updated_at::text AS "updatedAt"

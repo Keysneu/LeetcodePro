@@ -330,6 +330,7 @@ async function main() {
     mode: args.mode ?? process.env.E2E_MODE ?? "core",
     expectedStatus: args["expected-status"] ?? process.env.E2E_EXPECTED_STATUS ?? "AC",
     aiReviewMode: args["ai-review-mode"] ?? process.env.E2E_AI_REVIEW_MODE ?? "stream",
+    aiProvider: args["ai-provider"] ?? process.env.E2E_AI_PROVIDER ?? "vllm",
     pollIntervalMs: mustPositiveNumber(args["poll-interval-ms"] ?? process.env.E2E_POLL_INTERVAL_MS, 500),
     pollTimeoutMs: mustPositiveNumber(args["poll-timeout-ms"] ?? process.env.E2E_POLL_TIMEOUT_MS, 25_000),
     healthCheckDeps: mustBoolean(args["health-check-deps"] ?? process.env.E2E_HEALTH_CHECK_DEPS, true)
@@ -347,6 +348,9 @@ async function main() {
   }
   if (!["sync", "stream"].includes(config.aiReviewMode)) {
     throw new FlowError(`Unsupported ai review mode: ${config.aiReviewMode}`, EXIT_CODES.ARGUMENT_ERROR);
+  }
+  if (!["vllm", "minimax"].includes(config.aiProvider)) {
+    throw new FlowError(`Unsupported ai provider: ${config.aiProvider}`, EXIT_CODES.ARGUMENT_ERROR);
   }
 
   log("config", "Running minimal E2E flow with config", config);
@@ -408,6 +412,7 @@ async function main() {
   const aiReviewBody = {
     problemSlug: config.problemSlug,
     submissionId,
+    provider: config.aiProvider,
     code,
     status: finalSubmission.status,
     errorMessage: finalSubmission.errorMessage
@@ -415,12 +420,12 @@ async function main() {
   const aiReview =
     config.aiReviewMode === "stream"
       ? await requestAiReviewBySse({
-          url: `${config.apiBaseUrl}/api/ai/review/stream`,
+          url: `${config.apiBaseUrl}/api/ai/bug-find/stream`,
           body: aiReviewBody
         })
       : await requestJson({
           method: "POST",
-          url: `${config.apiBaseUrl}/api/ai/review`,
+          url: `${config.apiBaseUrl}/api/ai/bug-find`,
           body: aiReviewBody
         });
   log("ai-review", "AI review completed", {

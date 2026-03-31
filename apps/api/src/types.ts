@@ -23,6 +23,8 @@ export interface Submission {
   status: SubmissionStatus;
   runtimeMs: number | null;
   memoryKb: number | null;
+  passedCount: number;
+  totalCount: number;
   errorMessage: string | null;
   createdAt: string;
   updatedAt: string;
