@@ -21,6 +21,7 @@ type ReviewBody = {
 
 type SolutionBody = {
   problemSlug?: string;
+  submissionId?: string;
   problemTitle?: string;
   modeSupport?: string;
   preferredLanguage?: "cpp" | "python";
@@ -289,7 +290,8 @@ export class AiController {
     const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? "http://localhost:8000";
     let provider: AiProvider | null = normalizeAiProvider(body.provider);
     const sessionId = await this.ensureReviewSession(body);
-    const tutorRequestBody = await this.buildAiTutorReviewPayload(body, sessionId, provider);
+    const rawTutorRequestBody = await this.buildAiTutorReviewPayload(body, sessionId, provider);
+    const tutorRequestBody = this.sanitizeReviewBody(rawTutorRequestBody);
     const fallbackMessage = this.buildFallbackGuidance(tutorRequestBody);
     await this.appendAiMessage(sessionId, "user", this.buildUserReviewContext(tutorRequestBody));
 
@@ -341,7 +343,8 @@ export class AiController {
     const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? "http://localhost:8000";
     let provider: AiProvider | null = normalizeAiProvider(body.provider);
     const sessionId = await this.ensureReviewSession(body);
-    const tutorRequestBody = await this.buildAiTutorReviewPayload(body, sessionId, provider);
+    const rawTutorRequestBody = await this.buildAiTutorReviewPayload(body, sessionId, provider);
+    const tutorRequestBody = this.sanitizeReviewBody(rawTutorRequestBody);
     const fallbackMessage = this.buildFallbackGuidance(tutorRequestBody);
     await this.appendAiMessage(sessionId, "user", this.buildUserReviewContext(tutorRequestBody));
 
@@ -759,8 +762,10 @@ export class AiController {
   }
 
   private buildFallbackGuidance(body: ReviewBody): string {
+    const safeFailureSignals = this.sanitizeFailureSignals(body.failureSignals);
+    const safeErrorMessage = this.redactPromptInjection(body.errorMessage ?? "", 240);
     const codeSignals = this.extractCodeSignals(body.code ?? "");
-    const codeFindings = this.extractCodeFindings(body.code ?? "", body.status, body.errorMessage);
+    const codeFindings = this.extractCodeFindings(body.code ?? "", body.status, safeErrorMessage || body.errorMessage);
     const metricLine = [
       `状态=${body.status ?? "unknown"}`,
       `通过=${body.passedCount ?? "?"}/${body.totalCount ?? "?"}`,
@@ -768,8 +773,8 @@ export class AiController {
       `memory=${body.memoryKb ?? "?"}KB`
     ].join("，");
 
-    const failureLine = body.failureSignals?.length
-      ? body.failureSignals.map((item) => `${item.status}:${item.signal}`).join(" | ")
+    const failureLine = safeFailureSignals.length
+      ? safeFailureSignals.map((item) => `${item.status}:${item.signal}`).join(" | ")
       : "暂无逐用例失败信号";
     const findingsBlock = codeFindings.map((item) => `- ${item}`).join("\n");
     const normalizedStatus = (body.status ?? "").toUpperCase();
@@ -794,7 +799,7 @@ export class AiController {
         "",
         "证据与验证",
         `- 判题指标：${metricLine}`,
-        `- 错误信息：${body.errorMessage ?? "none"}`,
+        `- 错误信息：${safeErrorMessage || "none"}`,
         `- 失败信号：${failureLine}`,
         `- 代码侧信号：${codeSignals.join("；")}`
       ].join("\n");
@@ -812,7 +817,7 @@ export class AiController {
       "",
       "证据与快速验证",
       `- 判题指标：${metricLine}`,
-      `- 错误信息：${body.errorMessage ?? "none"}`,
+      `- 错误信息：${safeErrorMessage || "none"}`,
       `- 失败信号：${failureLine}`,
       "- 最小回归：失败样例 + 空输入/单元素/重复值/极值。"
     ].join("\n");
@@ -846,6 +851,9 @@ export class AiController {
   }
 
   private buildUserReviewContext(body: ReviewBody): string {
+    const safeFailureSignals = this.sanitizeFailureSignals(body.failureSignals);
+    const safeErrorMessage = this.redactPromptInjection(body.errorMessage ?? "", 240);
+
     return JSON.stringify(
       {
         problemSlug: body.problemSlug ?? null,
@@ -858,8 +866,8 @@ export class AiController {
         memoryKb: body.memoryKb ?? null,
         passedCount: body.passedCount ?? null,
         totalCount: body.totalCount ?? null,
-        failureSignals: body.failureSignals ?? [],
-        errorMessage: body.errorMessage ?? null,
+        failureSignals: safeFailureSignals,
+        errorMessage: safeErrorMessage || null,
         code: body.code?.slice(0, 8000) ?? null
       },
       null,
@@ -867,10 +875,60 @@ export class AiController {
     );
   }
 
+
+  private sanitizeReviewBody(body: ReviewBody): ReviewBody {
+    return {
+      ...body,
+      errorMessage: this.redactPromptInjection(body.errorMessage ?? "", 240) || null,
+      failureSignals: this.sanitizeFailureSignals(body.failureSignals)
+    };
+  }
+
+  private sanitizeFailureSignals(signals?: ReviewFailureSignal[]): ReviewFailureSignal[] {
+    if (!signals?.length) {
+      return [];
+    }
+
+    return signals.slice(0, 5).map((item) => ({
+      ...item,
+      signal: this.redactPromptInjection(item.signal ?? "", 220)
+    }));
+  }
+
+  private redactPromptInjection(text: string, maxLength: number): string {
+    if (!text) {
+      return "";
+    }
+
+    const patterns = [
+      /ignore[_\s-]*previous[_\s-]*instructions?/gi,
+      /print[_\s-]*system[_\s-]*prompt/gi,
+      /dump[_\s-]*developer[_\s-]*message/gi,
+      /show[_\s-]*system[_\s-]*prompt[_\s-]*now/gi,
+      /exfiltrate[_\s-]*env[_\s-]*[a-z0-9_]+/gi,
+      /print[_\s-]*secret[_\s-]*keys?/gi,
+      /give[_\s-]*full[_\s-]*running[_\s-]*solution[_\s-]*with[_\s-]*main[_\s-]*function/gi,
+      /系统提示词/gi,
+      /提示词注入/gi,
+      /完整答案/gi,
+      /VLLM_API_KEY/gi,
+      /MINIMAX_API_KEY/gi,
+      /OPENAI_API_KEY/gi
+    ];
+
+    let sanitized = text;
+    for (const pattern of patterns) {
+      sanitized = sanitized.replace(pattern, "[已屏蔽潜在注入片段]");
+    }
+
+    return sanitized.trim().slice(0, maxLength);
+  }
+
   private buildUserSolutionContext(body: SolutionBody): string {
     return JSON.stringify(
       {
         problemSlug: body.problemSlug ?? null,
+        submissionId: body.submissionId ?? null,
         problemTitle: body.problemTitle ?? null,
         modeSupport: body.modeSupport ?? null,
         provider: normalizeAiProvider(body.provider),
@@ -1162,6 +1220,7 @@ export class AiController {
     const reviewLikeBody: ReviewBody = {
       sessionId: body.sessionId,
       problemSlug: body.problemSlug,
+      submissionId: body.submissionId,
       status: "AC",
       errorMessage: null
     };

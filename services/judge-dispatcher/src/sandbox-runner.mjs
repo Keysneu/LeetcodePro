@@ -21,6 +21,8 @@ const verifiedDockerImages = new Set();
 const MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(MODULE_DIR, "..", "..", "..");
 const BUILTIN_SECCOMP_PROFILE = path.join(REPO_ROOT, "infra", "seccomp", "judge-seccomp.json");
+const MEMORY_MARKER_PREFIX = "__LC_MEMORY_KB__=";
+export const MEMORY_PROBE_VERSION = "2026-04-14.1";
 
 function appendLimited(base, chunk) {
   if (base.length >= MAX_OUTPUT_LENGTH) {
@@ -79,6 +81,23 @@ function resolveSeccompProfilePath() {
 
 function buildDockerArgs(options, image) {
   const seccompProfile = resolveSeccompProfilePath();
+  const memoryProbeScript = [
+    "\"$@\"",
+    "exit_code=$?",
+    "mem_bytes=\"\"",
+    "for mem_file in /sys/fs/cgroup/memory.peak /sys/fs/cgroup/memory.current /sys/fs/cgroup/memory.max_usage_in_bytes /sys/fs/cgroup/memory/memory.max_usage_in_bytes; do",
+    "  if [ -r \"$mem_file\" ]; then",
+    "    mem_bytes=$(cat \"$mem_file\" 2>/dev/null || true)",
+    "    if [ -n \"$mem_bytes\" ]; then",
+    "      break",
+    "    fi",
+    "  fi",
+    "done",
+    "if [ -n \"$mem_bytes\" ] && [ \"$mem_bytes\" != \"max\" ]; then",
+    `  printf "${MEMORY_MARKER_PREFIX}%s\\n" "$((mem_bytes / 1024))" >&2`,
+    "fi",
+    "exit \"$exit_code\""
+  ].join("\n");
 
   const args = [
     "run",
@@ -111,11 +130,87 @@ function buildDockerArgs(options, image) {
     args.push("--security-opt", `seccomp=${seccompProfile.trim()}`);
   }
 
-  args.push(image);
-  args.push(options.docker.command);
-  args.push(...options.docker.args);
+  args.push(image, "sh", "-lc", memoryProbeScript, "judge-entry", options.docker.command, ...options.docker.args);
 
   return args;
+}
+
+function normalizeMaxRssToKb(maxRss) {
+  if (!Number.isFinite(maxRss) || maxRss <= 0) {
+    return null;
+  }
+
+  // Node reports maxRSS in KB on Linux. On macOS it may be bytes, so normalize by heuristic.
+  if (process.platform === "darwin" && maxRss > 1024 * 1024) {
+    return Math.max(1, Math.round(maxRss / 1024));
+  }
+
+  return Math.max(1, Math.round(maxRss));
+}
+
+function readChildMemoryKb(child) {
+  if (!child || typeof child.resourceUsage !== "function") {
+    return null;
+  }
+
+  try {
+    const usage = child.resourceUsage();
+    if (!usage || typeof usage.maxRSS !== "number") {
+      return null;
+    }
+
+    return normalizeMaxRssToKb(usage.maxRSS);
+  } catch {
+    return null;
+  }
+}
+
+export function extractMemoryMarker(stderr) {
+  if (stderr.length === 0 || !stderr.includes(MEMORY_MARKER_PREFIX)) {
+    return { stderr, memoryKb: null };
+  }
+
+  const lines = stderr.split(/\r?\n/);
+  const keptLines = [];
+  let memoryKb = null;
+
+  for (const line of lines) {
+    const markerIndex = line.indexOf(MEMORY_MARKER_PREFIX);
+    if (markerIndex < 0) {
+      keptLines.push(line);
+      continue;
+    }
+
+    const prefixText = line.slice(0, markerIndex).trim();
+    if (prefixText.length > 0) {
+      keptLines.push(prefixText);
+    }
+
+    const markerPayload = line.slice(markerIndex + MEMORY_MARKER_PREFIX.length);
+    const numericMatch = markerPayload.match(/^\s*(\d+)/);
+    if (numericMatch) {
+      const parsed = Number(numericMatch[1]);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        memoryKb = Math.max(1, Math.round(parsed));
+      }
+
+      const suffixText = markerPayload.slice(numericMatch[0].length).trim();
+      if (suffixText.length > 0) {
+        keptLines.push(suffixText);
+      }
+      continue;
+    }
+
+    const unresolvedPayload = markerPayload.trim();
+    if (unresolvedPayload.length > 0) {
+      keptLines.push(unresolvedPayload);
+    }
+  }
+
+  return {
+    stderr: keptLines.join("\n").trim(),
+    memoryKb
+  };
 }
 
 async function inspectDockerImage(image) {
@@ -225,13 +320,16 @@ async function runLocalProcess(command, args, options) {
 
       finished = true;
       clearTimeout(timeoutTimer);
+      const extracted = extractMemoryMarker(appendLimited(stderr, `Process spawn error: ${error.message}`));
+      const fallbackMemoryKb = command === "docker" ? null : readChildMemoryKb(child);
       resolve({
         exitCode: null,
         signal: null,
         timedOut,
         durationMs: Date.now() - startedAt,
         stdout,
-        stderr: appendLimited(stderr, `Process spawn error: ${error.message}`)
+        stderr: extracted.stderr,
+        memoryKb: extracted.memoryKb ?? fallbackMemoryKb
       });
     });
 
@@ -242,13 +340,16 @@ async function runLocalProcess(command, args, options) {
 
       finished = true;
       clearTimeout(timeoutTimer);
+      const extracted = extractMemoryMarker(stderr);
+      const fallbackMemoryKb = command === "docker" ? null : readChildMemoryKb(child);
       resolve({
         exitCode,
         signal,
         timedOut,
         durationMs: Date.now() - startedAt,
         stdout,
-        stderr
+        stderr: extracted.stderr,
+        memoryKb: extracted.memoryKb ?? fallbackMemoryKb
       });
     });
 
@@ -274,7 +375,8 @@ export async function runSandboxCommand(options) {
         timedOut: false,
         durationMs: 0,
         stdout: "",
-        stderr: `${available.stderr}. Pull it first: docker pull ${image}`
+        stderr: `${available.stderr}. Pull it first: docker pull ${image}`,
+        memoryKb: null
       };
     }
 

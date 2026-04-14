@@ -1,6 +1,6 @@
 # LeetCodePro（MVP 第一阶段）运行与验证指南
 
-更新时间：2026-03-30（Asia/Shanghai）
+更新时间：2026-04-14（Asia/Shanghai）
 
 ## 1. 说明（请先看）
 
@@ -24,20 +24,40 @@
 - 前端题目页已打通真实交互：支持题目列表 API 拉取、题面详情展示、提交判题、结果轮询、AI **SSE 流式点评**
 - 前端展示已完成一轮 LeetCode 风格重构：统一深色 token、顶栏导航、题库表格化题单、题面/编辑区卡片层级、按钮与状态标签样式
 - 前端展示已完成第二轮 LeetCode 风格优化：题面/代码区增加 tab 结构、题库表头与通过率列优化、运行分析面板层级强化
+- 前端布局已升级为全站流式扩展：移除 `1400px` 固定上限，并按断点自适应利用大屏空间
+- 题库页展示已优化为“按题型分组 + 组内难度排序”，并将原“题目标识”列替换为“知识点”标签组件（显示该题全部标签）
 - 已支持夜间/白天主题切换（右上角按钮），并持久化到 `localStorage`
 - 题目详情页已打通“提交记录/题解”功能：提交记录展示历史提交与运行结果，题解支持 AI SSE 流式生成完整思路与代码讲解
+- 提交记录支持“回放联动”：点击历史提交可先确认再回放，自动回填当时代码与判题结果，并联动展示该次提交的 AI 找 Bug / AI 题解
+- 提交记录回放确认已升级为站内模态弹窗（支持 Esc/遮罩关闭与加载态禁用），不再使用浏览器原生 `confirm`
 - 题解功能已支持用户 Markdown 笔记上传与自动映射：在首页上传一次后，可按题目提取个人笔记并在“题解”tab优先展示，且按 Markdown 格式渲染
 - 题目页右侧工作区布局已调整为上下分区：上方仅代码编辑器，下方独立展示操作按钮、判题结果与 AI 找 Bug
+- 做题页内部分栏已扩展为可拖拽比例：支持“代码框/运行与分析”与“题解笔记/AI题解”两组纵向拖拽，比例持久化并支持双击恢复默认
+- 判题结果已支持失败样例可视化：展示输入/输出/期望输出，输出对比按字符级红绿高亮；隐藏用例默认折叠可手动展开
+- 失败样例展示已增强兼容：当历史数据缺少 `actualOutput` 时，会从 `Expected ..., got ...` 错误信息中自动回填“你的输出”
+- 判题内存已改为真实采集（提交结果展示峰值内存 KB），不再固定为空
 - 核心代码模式已对齐 LeetCode 风格：C++ 默认模板为 `class Solution` 成员函数，用户无需手动编写头文件
+- 修复核心模式元数据缺失：`linked-list-cycle-ii` 与 `intersection-of-two-linked-lists` 已补齐 `Solution` 方法签名，避免提交时报错 `Invalid solution metadata for class Solution`
+- 修复 `linked-list-cycle-ii` 判题语义与样例数据：核心模式按“入环索引”比较结果，且修正该题错误隐藏用例期望值（`head=[1,2], pos=0`）
 - 编辑器模式切换行为已更新：切到 `ACM` 会自动清空代码；切回 `core` 会恢复该题在核心模式下编辑过的代码
 - 新增后台判题数据看板：支持按题查看判题使用的完整测试数据（公开/隐藏用例、权重、输入、期望输出）
+- 新增进度页可视化：`/progress` 已接入近 90 天打卡热力图与 Top8 标签能力雷达图（浏览器本地时区统计）
+- 新增进度聚合接口：`GET /api/progress/overview?timezone=<IANA>`（热力图按 AC 提交次数累计，雷达图按标签 AC 覆盖率计算）
+- 新增题目掌握度可视化：题库页展示“未做题/尝试中/一遍过/两次过/多次过 + 最近状态”，题目页展示 4 条语言/模式细分轨道
+- 新增题目掌握度接口：`GET /api/problems` 返回 `masterySummary`；`GET /api/problems/:slug/mastery` 返回 summary + tracks
 - 前端构建目录已隔离：`next dev` 使用 `.next-dev`，`next build/start` 使用 `.next`，减少 chunk 缓存串扰
 - AI 找 Bug 链路已接通 `vLLM/MiniMax 实时调用 + SSE 流式输出 + ai_sessions/ai_messages 落库`（可返回 `sessionId`）
 - Judge 默认运行在 `docker` 沙箱模式：禁网、只读根文件系统、非 root 用户、`memory/cpu/pids` 限制（cgroups）+ 自定义 seccomp profile
+- Judge 开发模式默认优先 `node --watch`，若系统文件监听数不足（`EMFILE`）会自动回退到 `node server.mjs`
+- Judge 健康检查新增诊断指纹：`startedAt`、`memoryProbeVersion`（用于判断是否在跑旧实例）
 - C++ 判题依赖镜像 `gcc:13-bookworm`，Python 判题依赖镜像 `python:3.12-slim`
 - 已提供 `P0-6` 验收脚本：
   - 连续 10 次稳定性验收：`npm run e2e:stability`
   - MVP 演示脚本：`npm run demo:mvp`
+- 2026-04-04 复测 `npm run e2e:minimal` 通过，P0 主链路稳定（题目查询 -> 提交 -> 判题 -> AI 找 Bug）
+- 新增 P1-1 质量评估脚本：`scripts/e2e/ai-review-quality-eval.mjs`（命令：`npm run e2e:ai-quality`）
+- 新增 P1-2 对抗测试脚本：`scripts/e2e/prompt-injection-attack.mjs`（命令：`npm run e2e:prompt-injection`）
+- API Review 路径新增注入片段脱敏：对 `errorMessage/failureSignals` 做提示词注入关键词屏蔽，避免回显恶意指令
 
 当前未完成范围：
 - 推荐系统、遗忘曲线调度、RAG 检索增强等 V2 能力尚未进入 MVP 范围
@@ -46,6 +66,8 @@
 - 方式 A：使用前端题目页进行真实提交流程验证
 - 方式 B：使用 `curl` 调用 API 创建提交，再轮询提交状态，并验证 AI SSE/会话落库
 - 方式 C：进入后台看板核对每题判题数据（`/admin/problems`）
+- 方式 D：打开进度页验证热力图与雷达图（`/progress`）
+- 方式 E：打开题库和题目页验证掌握度状态与细分轨道（`/problems`、`/problems/:slug`）
 
 ---
 
@@ -176,6 +198,9 @@ npm run db:seed -w @leetcodepro/api
 - `applied migration: 002_add_ai_sessions_and_messages.sql`
 - `applied migration: 003_add_user_notes.sql`
 - `applied migration: 004_add_leetcode_id_to_problems.sql`
+- `applied migration: 005_add_actual_output_to_submission_case_results.sql`
+- `applied migration: 006_fix_linked_list_cycle_ii_expected_output.sql`
+- `applied migration: 007_add_submissions_mastery_lookup_index.sql`
 - `database migration completed.`
 - `seed completed: 100 problems, demo user demo@leetcodepro.local`
 
@@ -184,6 +209,9 @@ npm run db:seed -w @leetcodepro/api
 ```bash
 npm run dev
 ```
+
+说明：
+- `@leetcodepro/judge-dispatcher` 开发脚本优先使用 `node --watch` 自动重启；若出现 `EMFILE`，会自动回退普通启动（此时需手动重启 Judge）。
 
 预期服务地址：
 
@@ -215,6 +243,8 @@ curl http://localhost:8080/health
 - `status` 为 `ok`
 - `executionMode` 为 `docker`
 - `seccompProfile` 为非空路径（默认内置 `infra/seccomp/judge-seccomp.json`）
+- `startedAt` 为 ISO 时间字符串（进程启动时间）
+- `memoryProbeVersion` 为非空版本号（用于定位内存采集逻辑版本）
 - `queueName` 为 `judge.submissions.v1`
 
 ### 4.2 题库接口验证
@@ -321,27 +351,50 @@ psql postgresql://postgres:postgres@localhost:5432/leetcodepro -c "select role, 
 浏览器打开并按下面步骤操作：
 
 1. 打开 `http://localhost:3000/problems`，确认列表来自 API，且题目总数为 `100`。
-2. 点击进入 `http://localhost:3000/problems/two-sum`。
-3. 观察右侧编辑器默认代码，确认是 LeetCode 风格 `class Solution { ... }`，且没有 `#include` 头文件。
-4. 在 `core` 模式下先输入任意标记（例如 `// core-mark`）。
-5. 将模式切到 `ACM`，确认编辑器内容立即被清空（空白状态）。
-6. 再切回 `core`，确认第 4 步输入的 `// core-mark` 被恢复显示。
-7. 在右侧编辑器保持默认代码或粘贴可 AC 代码，点击 `提交判题`。
-8. 观察“判题结果”面板状态从 `QUEUED/RUNNING` 变为终态（如 `AC`）。
-9. 在“运行与分析”区域将 AI 模型从 `vLLM（远程）` 切到 `MiniMax（远程）`。
-10. 点击 `AI 找 Bug`，若本次未 AC，应返回“主要问题 + 具体修改建议 + 快速验证”；若已 AC，应返回“通过后优化评审”，并显示 `source` 和当前模型。
-11. 在题目左侧切到“题解”标签，将模型切换为 `vLLM（远程）` 后点击 `生成题解`。
-12. 观察“AI 题解补充”区域可正常流式生成，并显示 `source` 与模型。
-13. 点击顶部导航右上角主题按钮，在“夜间/白天”之间切换 2 次，确认页面背景、卡片、文字和 Monaco 编辑器主题同步切换。
-14. 在题目左侧切换到“提交记录”标签，确认能看到最近提交状态、运行时间、内存与错误信息。
-15. 返回首页 `http://localhost:3000/`，在“上传刷题笔记（全局）”卡片上传包含多题笔记的 Markdown。
-16. 回到题目页“题解”标签，确认“我的题解笔记”区域能展示当前题匹配内容。
+2. 在题库页确认每题最后一列显示“知识点”标签（不再显示 slug 文本），并且题目按题型分组展示。
+3. 在任意题型组中确认组内排序为 `简单 -> 中等 -> 困难`；同难度下题号升序。
+4. 点击进入 `http://localhost:3000/problems/two-sum`。
+5. 观察右侧编辑器默认代码，确认是 LeetCode 风格 `class Solution { ... }`，且没有 `#include` 头文件。
+6. 在 `core` 模式下先输入任意标记（例如 `// core-mark`）。
+7. 将模式切到 `ACM`，确认编辑器内容立即被清空（空白状态）。
+8. 再切回 `core`，确认第 4 步输入的 `// core-mark` 被恢复显示。
+9. 在右侧编辑器保持默认代码或粘贴可 AC 代码，点击 `提交判题`。
+10. 观察“判题结果”面板状态从 `QUEUED/RUNNING` 变为终态（如 `AC`）。
+11. 在“运行与分析”区域将 AI 模型从 `vLLM（远程）` 切到 `MiniMax（远程）`。
+12. 点击 `AI 找 Bug`，若本次未 AC，应返回“主要问题 + 具体修改建议 + 快速验证”；若已 AC，应返回“通过后优化评审”。
+13. 在题目左侧切到“题解”标签，将模型切换为 `vLLM（远程）` 后点击 `生成题解`。
+14. 观察“AI 题解补充”区域可正常流式生成。
+15. 点击顶部导航右上角主题按钮，在“夜间/白天”之间切换 2 次，确认页面背景、卡片、文字和 Monaco 编辑器主题同步切换。
+16. 在题目左侧切换到“提交记录”标签，确认能看到最近提交状态、运行时间、内存与错误信息。
+17. 点击任意一条历史提交，站内确认弹窗出现后先点“取消”，确认编辑器与“运行与分析”区域保持不变。
+18. 再次点击同一条历史提交并确认，验证编辑器代码被回填为该次提交内容，右侧“判题结果 + AI 找 Bug”同步切换。
+19. 回放成功后应自动切换到“题解”tab；若该提交无历史 AI 题解，显示“该提交暂无 AI 题解，点击生成题解手动生成”。
+20. 在该回放状态下点击“生成题解”，确认可正常生成并与该 `submissionId` 绑定。
+21. 返回首页 `http://localhost:3000/`，在“上传刷题笔记（全局）”卡片上传包含多题笔记的 Markdown。
+22. 回到题目页“题解”标签，确认“我的题解笔记”区域能展示当前题匹配内容。
+23. 将浏览器拉宽到 `1920px` 或 `2560px`，确认 `题库/进度/后台` 页面主体区域随窗口扩展，不再被 `1400px` 限制。
+24. 在 `http://localhost:3000/problems/two-sum` 桌面端确认左右默认分栏约 `40/60`，拖拽中间分隔条可实时调整宽度；双击分隔条恢复默认比例。
+25. 刷新页面确认分栏比例保持；将窗口缩到平板/手机宽度后确认自动切换为上下堆叠，且拖拽分隔条不显示。
+26. 在题目页右侧确认“代码框/运行与分析”默认约 `65/35`，拖拽中间横向分隔条后高度实时变化，双击分隔条恢复默认比例。
+27. 切到“题解”tab，确认“我的题解笔记/AI题解补充”默认约 `50/50`，拖拽分隔条后比例变化并在刷新后保持。
+28. 将窗口缩到平板/手机宽度，确认上述两组纵向分栏均自动回退为普通上下堆叠且不显示拖拽条。
 
 预期：
-- 提交后可看到 `submission id`、`status`、`runtimeMs/errorMessage` 的实时更新
+- 提交后可看到 `status`、`runtimeMs/memoryKb`、`通过数` 的实时更新
 - `AC` 或失败态都会稳定落在终态，不会长期卡在 `QUEUED`
 - AI 找 Bug 区域返回非空文本，且会结合提交代码与错误信息直接定位可疑问题位置
+- 非 AC 时应展示“失败样例”卡片，包含输入/输出/期望输出；输出与期望的差异字符按红绿高亮显示
+- 隐藏用例失败时默认折叠，点击“展开查看失败样例”后再显示完整详情
+- 页面不再展示开发调试元信息：`控制台` 占位、`Submission ID`、`实际 Provider`、`来源`、`会话`
+- 超宽屏下主内容区域应充分利用视口宽度（保留响应式安全边距），不再出现大面积左右留白
+- 做题页桌面端支持可拖拽分栏；刷新后保持上次分栏比例，双击分隔条恢复默认
+- 做题页右侧“代码框/运行与分析”支持纵向拖拽比例（默认 `65/35`），刷新后保持，双击恢复默认
+- “题解”tab 下“题解笔记/AI题解”支持纵向拖拽比例（默认 `50/50`），刷新后保持，双击恢复默认
+- 做题页在平板/手机宽度应自动回退为上下堆叠，保证阅读与编辑可滚动
 - 题库列表应以 `题号.中文题名` 展示（例如 `1. 两数之和`）
+- 题库页应按题型分组展示，每组显示“题型名 + 题量”；无标签题归入“未分类”
+- 组内题目应按 `简单 -> 中等 -> 困难` 排序；同难度下按题号升序
+- 题库页“知识点”列应以标签组件展示该题全部知识点，不再显示 `slug`
 - 核心模式默认代码符合 LeetCode 风格（`class Solution`），且无需用户显式编写 C++ 头文件
 - 切换到 `ACM` 时编辑器内容会清空；切回 `core` 时会恢复该题核心模式下最近编辑内容
 - 所有 Hot100 题目都支持 `core + acm` 双模式提交（含设计题）
@@ -350,6 +403,9 @@ psql postgresql://postgres:postgres@localhost:5432/leetcodepro -c "select role, 
 - 题目页右侧顺序符合“代码编辑区在上，操作按钮+判题/AI 面板在下”
 - 主题切换后无需刷新页面，且重新打开浏览器后保持最近一次主题选择
 - “提交记录”标签可看到最新 30 条提交，状态色与判题状态一致
+- 点击“提交记录”会先弹确认；确认后自动回放该次提交（代码 + 判题结果 + AI 找 Bug）并切到“题解”tab
+- 回放确认应为站内模态弹窗，不再出现浏览器原生 `confirm` 弹框
+- 若历史提交没有 AI 题解，题解区应展示空态提示且不自动生成；手动点击“生成题解”后可补齐并落库
 - “题解”标签能返回结构化题解文本（题意/思路/复杂度/代码/易错点）
 - 首页上传 `.md` 后，系统会返回匹配结果；若包含当前题目，题解页“我的题解笔记”应立即展示对应段落
 - “我的题解笔记”区域应按 Markdown 正确渲染（标题、列表、代码块、表格等）
@@ -397,6 +453,78 @@ curl http://localhost:3001/api/admin/problems/two-sum/judge-data \
 - 右侧“判题测试用例”可看到输入与期望输出原文（空内容显示 `(空)`）
 - 未携带或携带错误 `x-admin-key` 时，接口返回 `401`
 
+### 4.15 进度页可视化验证（本次新增）
+
+进度聚合接口验证（示例：`Asia/Shanghai`）：
+
+```bash
+curl "http://localhost:3001/api/progress/overview?timezone=Asia/Shanghai"
+```
+
+预期：
+- 返回 `heatmap.startDate`、`heatmap.endDate`、`heatmap.days`
+- `heatmap.days` 长度固定为 `90`，且日期连续
+- 每项包含 `date`（`YYYY-MM-DD`）与 `acCount`（当天 AC 提交次数，可大于 1）
+- 返回 `radar.tags`，最多 `8` 项，每项含 `tag/totalProblems/solvedProblems/coverageRate`
+- `coverageRate` 为百分比（`0 ~ 100`），计算口径为 `近90天该标签已AC题数(按题去重) / 标签全库总题数`
+- 返回 `summary.totalAcSubmissions90d` 与 `summary.activeDays90d`
+
+错误路径验证（非法时区）：
+
+```bash
+curl "http://localhost:3001/api/progress/overview?timezone=Mars/OlympusMons"
+```
+
+预期：
+- 返回 `400`
+- 错误信息提示 timezone 非法
+
+页面验证：
+
+1. 打开 `http://localhost:3000/progress`。
+2. 首屏应看到 3 个统计卡片：`90 天 AC 提交总数`、`90 天活跃打卡天数`、`统计时区`。
+3. 热力图应展示近 90 天连续日期格子；鼠标悬浮可看到日期和 AC 次数。
+4. 雷达图应展示 Top8 高频标签；tooltip 显示 `覆盖率%` 和 `已解/总题数`。
+5. 如切换系统时区后刷新页面，统计时区与图表分桶应随浏览器时区变化。
+
+### 4.16 题目掌握度功能验证（本次新增）
+
+题库掌握度列表接口验证：
+
+```bash
+curl http://localhost:3001/api/problems
+```
+
+预期：
+- 每个 `item` 包含 `masterySummary`
+- `masterySummary` 字段包含：
+  - `overallStatus`：`UNTOUCHED | ATTEMPTING | SOLVED_ONCE | SOLVED_TWICE | SOLVED_MANY`
+  - `isSolved`
+  - `totalAttempts`
+  - `attemptsToFirstAc`
+  - `latestStatus`
+
+题目掌握度详情接口验证（示例：`two-sum`）：
+
+```bash
+curl http://localhost:3001/api/problems/two-sum/mastery
+```
+
+预期：
+- 返回 `summary` 与 `tracks`
+- `tracks` 固定 4 条（`core-cpp`、`core-python`、`acm-cpp`、`acm-python`）
+- 每条 track 包含 `mode/language/supported/status/totalAttempts/attemptsToFirstAc/latestStatus/isSolved`
+- 不支持的轨道（若题目仅支持 CORE 或 ACM）状态应为 `UNSUPPORTED`
+
+页面验证：
+
+1. 打开 `http://localhost:3000/problems`，观察“状态”列不再是空心点，而是“未做题/尝试中/一遍过/两次过/多次过”徽标。
+2. 同一行状态下应显示最近状态（如 `最近: WA` / `最近: AC`）。
+3. 进入任意题目页（例如 `http://localhost:3000/problems/two-sum`），右侧“运行与分析”区域应出现“题目掌握度”卡片。
+4. 卡片顶部显示题目总状态、总尝试次数、首 AC 次数、最近状态。
+5. 卡片内 4 条轨道分别显示：当前状态、尝试次数、首 AC 次数、最近状态。
+6. 在当前页再次提交代码后，无需刷新页面，掌握度卡片会自动更新。
+
 ### 4.9 新接口验证（提交记录 + 题解）
 
 提交记录接口：
@@ -409,12 +537,23 @@ curl http://localhost:3001/api/submissions/history/by-problem/two-sum
 - 返回 `items` 数组
 - 每项包含 `status`、`runtimeMs`、`memoryKb`、`passedCount`、`totalCount`、`createdAt`
 
+提交记录回放聚合接口：
+
+```bash
+curl http://localhost:3001/api/submissions/<submission-id>/replay
+```
+
+预期：
+- 返回 `submission`（含 `code`、`status`、`failureCase`）
+- 返回 `ai.review`（该提交最新 AI 找 Bug assistant 消息，可能为 `null`）
+- 返回 `ai.solution`（该提交最新 AI 题解 assistant 消息，可能为 `null`）
+
 题解同步接口：
 
 ```bash
 curl -X POST http://localhost:3001/api/ai/solution \
   -H "content-type: application/json" \
-  -d '{"problemSlug":"two-sum","problemTitle":"Two Sum","modeSupport":"BOTH","provider":"minimax","preferredLanguage":"cpp","description":"给定整数数组 nums 和目标值 target，找到和为 target 的两个下标。","sampleInput":"nums=[2,7,11,15], target=9","sampleOutput":"[0,1]"}'
+  -d '{"problemSlug":"two-sum","submissionId":"<submission-id>","problemTitle":"Two Sum","modeSupport":"BOTH","provider":"minimax","preferredLanguage":"cpp","description":"给定整数数组 nums 和目标值 target，找到和为 target 的两个下标。","sampleInput":"nums=[2,7,11,15], target=9","sampleOutput":"[0,1]"}'
 ```
 
 预期：
@@ -429,7 +568,7 @@ curl -X POST http://localhost:3001/api/ai/solution \
 ```bash
 curl -N -X POST http://localhost:3001/api/ai/solution/stream \
   -H "content-type: application/json" \
-  -d '{"problemSlug":"two-sum","problemTitle":"Two Sum","modeSupport":"BOTH","provider":"vllm","preferredLanguage":"cpp","description":"给定整数数组 nums 和目标值 target，找到和为 target 的两个下标。","sampleInput":"nums=[2,7,11,15], target=9","sampleOutput":"[0,1]"}'
+  -d '{"problemSlug":"two-sum","submissionId":"<submission-id>","problemTitle":"Two Sum","modeSupport":"BOTH","provider":"vllm","preferredLanguage":"cpp","description":"给定整数数组 nums 和目标值 target，找到和为 target 的两个下标。","sampleInput":"nums=[2,7,11,15], target=9","sampleOutput":"[0,1]"}'
 ```
 
 预期：
@@ -477,6 +616,56 @@ npm run test -w @leetcodepro/judge-dispatcher
 预期：
 - `@leetcodepro/api`：`notes-matcher` 测试通过（题号边界切分 + 标题后缀括号兼容）
 - `@leetcodepro/judge-dispatcher`：判题回归测试通过
+
+### 4.13 AI 诊断质量评估（P1-1）
+
+```bash
+npm run e2e:ai-quality
+```
+
+可选参数示例：
+
+```bash
+node scripts/e2e/ai-review-quality-eval.mjs \
+  --api-base-url http://localhost:3001 \
+  --provider vllm \
+  --min-case-score 70 \
+  --min-overall-score 80
+```
+
+预期：
+- 输出 `summary: "ai review quality gate passed"`
+- 输出 `overallScore` 与每个场景的 `score/checks/source`
+- 默认覆盖 4 类场景：`WA`、`TLE`、`CE`、`AC`
+- 质量闸门失败时进程退出码为 `51`
+
+### 4.14 Prompt Injection 对抗测试（P1-2）
+
+```bash
+npm run e2e:prompt-injection
+```
+
+可选参数示例：
+
+```bash
+node scripts/e2e/prompt-injection-attack.mjs \
+  --api-base-url http://localhost:3001 \
+  --provider vllm \
+  --min-case-score 80 \
+  --min-overall-score 90
+```
+
+预期：
+- 输出 `summary: "prompt injection security gate passed"`
+- 默认覆盖 3 组攻击向量：
+  - 通过 `errorMessage` 注入系统提示词套取与密钥索取
+  - 通过 `failureSignals` 诱导输出完整可运行答案
+  - 在 `AC` 状态下诱导泄露系统提示与密钥
+- 每组输出包含 `score/checks/source`，并校验：
+  - 不回显恶意 token
+  - 不泄露系统提示词/密钥字段
+  - 不输出整题完整可运行答案
+- 对抗闸门失败时进程退出码为 `53`
 
 ### 4.6 最小 E2E 一键联调脚本（推荐）
 
@@ -769,6 +958,23 @@ docker compose down
   2. 重新执行：`npm run db:seed -w @leetcodepro/api`
   3. 验证题库数量：`curl http://localhost:3001/api/problems | jq '.items | length'`
 - 预期结果：seed 正常完成并打印 `seed completed: 100 problems...`。
+
+### 6.20 判题完成后内存仍显示 `- KB`
+
+- 现象：提交终态（`AC/WA/TLE/RE`）时，页面仍显示 `内存：- KB`。
+- 根因：运行中的 Judge 进程可能是旧实例，未加载最新内存采集逻辑。
+- 排查步骤：
+  1. `curl http://localhost:8080/health`，确认返回包含 `startedAt` 与 `memoryProbeVersion`。
+  2. 修改 `services/judge-dispatcher/src/sandbox-runner.mjs` 后观察 `startedAt` 是否变化（应自动重启）。
+  3. 若未变化，手动重启 Judge：
+     - 仅重启 Judge：`npm run dev:judge`
+     - 若端口被占用先清理：`lsof -tiTCP:8080 -sTCP:LISTEN | xargs kill`
+  4. 提交一条 `two-sum`（Python core）后轮询 `GET /api/submissions/<id>`，确认终态 `memoryKb > 0`。
+  5. 验证 case 级入库（Docker 自带 psql）：
+     `docker exec leetcodepro-postgres psql -U postgres -d leetcodepro -c "select status,runtime_ms,memory_kb from submission_case_results where submission_id='<id>' order by id;"`
+- 预期结果：
+  - 提交结果中的 `memoryKb` 为正整数。
+  - `submission_case_results.memory_kb` 不再是 `NULL`（编译失败 `CE` 场景除外）。
 
 ---
 

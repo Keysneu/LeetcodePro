@@ -32,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen text-[var(--lc-text)] antialiased">
         <TopNav />
-        <main className="mx-auto w-full max-w-[1400px] px-3 py-5 md:px-6 md:py-6">{children}</main>
+        <main className="w-full px-3 py-5 md:px-5 md:py-6 xl:px-8 2xl:px-10">{children}</main>
       </body>
     </html>
   );

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import ProblemResizableLayout from "@/components/problem-resizable-layout";
 import ProblemSidePanel from "@/components/problem-side-panel";
 import ProblemWorkspace from "@/components/problem-workspace";
 import { HOT100_TITLE_ZH_BY_ID } from "@/lib/hot100-title-zh";
@@ -74,7 +75,7 @@ export default async function ProblemDetailPage({ params }: Props) {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
 
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(360px,46%)_1fr]">
+    <ProblemResizableLayout>
       <ProblemSidePanel apiBaseUrl={apiBaseUrl} problem={{ ...problem, titleZh }} />
 
       <ProblemWorkspace
@@ -83,6 +84,6 @@ export default async function ProblemDetailPage({ params }: Props) {
         modeSupport={problem.modeSupport}
         initialCoreCodes={initialCoreCodes}
       />
-    </div>
+    </ProblemResizableLayout>
   );
 }

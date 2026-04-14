@@ -366,7 +366,22 @@
   "intersection-of-two-linked-lists": {
     "className": "Solution",
     "kind": "solution",
-    "methods": []
+    "methods": [
+      {
+        "name": "getIntersectionNode",
+        "returnType": "ListNode*",
+        "params": [
+          {
+            "type": "ListNode*",
+            "name": "headA"
+          },
+          {
+            "type": "ListNode*",
+            "name": "headB"
+          }
+        ]
+      }
+    ]
   },
   "reverse-linked-list": {
     "className": "Solution",
@@ -419,7 +434,18 @@
   "linked-list-cycle-ii": {
     "className": "Solution",
     "kind": "solution",
-    "methods": []
+    "methods": [
+      {
+        "name": "detectCycle",
+        "returnType": "ListNode*",
+        "params": [
+          {
+            "type": "ListNode*",
+            "name": "head"
+          }
+        ]
+      }
+    ]
   },
   "merge-two-sorted-lists": {
     "className": "Solution",

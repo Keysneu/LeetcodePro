@@ -18,6 +18,8 @@ type Props = {
   initialMode?: EditorMode;
   modeSupport?: ModeSupport;
   initialLanguage?: EditorLanguage;
+  overrideState?: EditorState | null;
+  overrideVersion?: number;
   onStateChange?: (state: EditorState) => void;
 };
 
@@ -44,6 +46,8 @@ export default function CodeEditor({
   initialMode = "core",
   modeSupport = "BOTH",
   initialLanguage = "cpp",
+  overrideState = null,
+  overrideVersion = 0,
   onStateChange
 }: Props) {
   const resolvedInitialMode = isModeAllowed(initialMode, modeSupport) ? initialMode : modeSupport === "ACM" ? "acm" : "core";
@@ -93,6 +97,27 @@ export default function CodeEditor({
     setMode(nextMode);
     setCode(nextMode === "core" ? coreCodeByLanguage[language] ?? "" : "");
   }, [coreCodeByLanguage, language, mode, modeSupport]);
+
+  useEffect(() => {
+    if (!overrideState) {
+      return;
+    }
+
+    const nextLanguage = overrideState.language;
+    const nextMode = isModeAllowed(overrideState.mode, modeSupport) ? overrideState.mode : modeSupport === "ACM" ? "acm" : "core";
+    const nextCode = overrideState.code ?? "";
+
+    setLanguage(nextLanguage);
+    setMode(nextMode);
+    setCode(nextCode);
+
+    if (nextMode === "core") {
+      setCoreCodeByLanguage((previous) => ({
+        ...previous,
+        [nextLanguage]: nextCode
+      }));
+    }
+  }, [modeSupport, overrideState, overrideVersion]);
 
   return (
     <div className="flex h-full flex-col gap-3">
@@ -151,7 +176,7 @@ export default function CodeEditor({
         </select>
       </div>
 
-      <div className="h-[52vh] min-h-[430px] overflow-hidden rounded-lg border">
+      <div className="h-[52vh] min-h-[320px] overflow-hidden rounded-lg border lg:h-full">
         <Editor
           height="100%"
           language={monacoLanguage}

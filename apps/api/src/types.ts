@@ -28,4 +28,12 @@ export interface Submission {
   errorMessage: string | null;
   createdAt: string;
   updatedAt: string;
+  failureCase?: {
+    status: SubmissionStatus;
+    isHidden: boolean;
+    inputData: string;
+    actualOutput: string | null;
+    expectedOutput: string;
+    stderr: string | null;
+  } | null;
 }

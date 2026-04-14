@@ -43,6 +43,7 @@ type SubmissionRow = {
   errorMessage: string | null;
   createdAt: string;
   updatedAt: string;
+  failureCase?: SubmissionFailureCase | null;
 };
 
 type SubmissionHistoryRow = Omit<SubmissionRow, "code">;
@@ -51,7 +52,60 @@ type UserRow = {
   id: string;
 };
 
+type SubmissionFailureCase = {
+  status: SubmissionStatus;
+  isHidden: boolean;
+  inputData: string;
+  actualOutput: string | null;
+  expectedOutput: string;
+  stderr: string | null;
+};
+
+type SubmissionFailureCaseRow = {
+  status: SubmissionStatus;
+  isHidden: boolean;
+  inputData: string;
+  actualOutput: string | null;
+  expectedOutput: string;
+  stderr: string | null;
+};
+
+type ReplayAiMessage = {
+  content: string;
+  createdAt: string;
+  sessionId: string;
+  source: string | null;
+  provider: string | null;
+};
+
+type ReplayAiMessageRow = {
+  content: string;
+  createdAt: string;
+  sessionId: string;
+  source: string | null;
+  provider: string | null;
+};
+
 const DEMO_USER_EMAIL = process.env.DEMO_USER_EMAIL ?? "demo@leetcodepro.local";
+
+function inferActualOutputFromStderr(stderr: string | null): string | null {
+  if (!stderr) {
+    return null;
+  }
+
+  const trimmed = stderr.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  const matched = trimmed.match(/^Expected\s+([\s\S]*?),\s+got\s+([\s\S]*)$/);
+  if (!matched) {
+    return null;
+  }
+
+  const got = matched[2]?.trim() ?? "";
+  return got.length > 0 ? got : null;
+}
 
 @Controller("submissions")
 export class SubmissionsController {
@@ -151,38 +205,29 @@ export class SubmissionsController {
 
   @Get(":id")
   async getSubmission(@Param("id") id: string) {
-    const submissionResult = await query<SubmissionRow>(
-      `
-        SELECT
-          submissions.id,
-          problems.slug AS "problemSlug",
-          submissions.language,
-          submissions.mode,
-          submissions.code,
-          submissions.status,
-          submissions.runtime_ms AS "runtimeMs",
-          submissions.memory_kb AS "memoryKb",
-          submissions.passed_count AS "passedCount",
-          submissions.total_count AS "totalCount",
-          submissions.error_message AS "errorMessage",
-          submissions.created_at::text AS "createdAt",
-          submissions.updated_at::text AS "updatedAt"
-        FROM submissions
-        INNER JOIN problems ON problems.id = submissions.problem_id
-        WHERE submissions.id = $1
-        LIMIT 1;
-      `,
-      [id]
-    );
-
-    const submission = submissionResult.rows[0];
-
-    if (!submission) {
-      throw new NotFoundException("Submission not found");
-    }
+    const submission = await this.loadSubmissionWithFailureCase(id);
 
     return {
-      item: submission
+      item: {
+        ...submission
+      }
+    };
+  }
+
+  @Get(":id/replay")
+  async getSubmissionReplay(@Param("id") id: string) {
+    const submission = await this.loadSubmissionWithFailureCase(id);
+    const [review, solution] = await Promise.all([
+      this.loadLatestReplayAiMessage(id, "review"),
+      this.loadLatestReplayAiMessage(id, "solution")
+    ]);
+
+    return {
+      submission,
+      ai: {
+        review,
+        solution
+      }
     };
   }
 
@@ -245,5 +290,121 @@ export class SubmissionsController {
     );
 
     return userResult.rows[0].id;
+  }
+
+  private async loadFailureCase(submissionId: string): Promise<SubmissionFailureCase | null> {
+    const result = await query<SubmissionFailureCaseRow>(
+      `
+        SELECT
+          scr.status,
+          tc.is_hidden AS "isHidden",
+          tc.input_data AS "inputData",
+          scr.actual_output AS "actualOutput",
+          tc.expected_output AS "expectedOutput",
+          scr.stderr
+        FROM submission_case_results scr
+        INNER JOIN test_cases tc ON tc.id = scr.case_id
+        WHERE scr.submission_id = $1
+          AND scr.status <> 'AC'
+        ORDER BY tc.is_hidden ASC, scr.id ASC
+        LIMIT 1;
+      `,
+      [submissionId]
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      return null;
+    }
+
+    return {
+      ...row,
+      actualOutput: row.actualOutput ?? inferActualOutputFromStderr(row.stderr)
+    };
+  }
+
+  private async loadSubmissionWithFailureCase(id: string): Promise<SubmissionRow & { failureCase: SubmissionFailureCase | null }> {
+    const submissionResult = await query<SubmissionRow>(
+      `
+        SELECT
+          submissions.id,
+          problems.slug AS "problemSlug",
+          submissions.language,
+          submissions.mode,
+          submissions.code,
+          submissions.status,
+          submissions.runtime_ms AS "runtimeMs",
+          submissions.memory_kb AS "memoryKb",
+          submissions.passed_count AS "passedCount",
+          submissions.total_count AS "totalCount",
+          submissions.error_message AS "errorMessage",
+          submissions.created_at::text AS "createdAt",
+          submissions.updated_at::text AS "updatedAt"
+        FROM submissions
+        INNER JOIN problems ON problems.id = submissions.problem_id
+        WHERE submissions.id = $1
+        LIMIT 1;
+      `,
+      [id]
+    );
+
+    const submission = submissionResult.rows[0];
+    if (!submission) {
+      throw new NotFoundException("Submission not found");
+    }
+
+    let failureCase: SubmissionFailureCase | null = null;
+    if (submission.status !== "QUEUED" && submission.status !== "RUNNING" && submission.status !== "AC") {
+      failureCase = await this.loadFailureCase(submission.id);
+    }
+
+    return {
+      ...submission,
+      failureCase
+    };
+  }
+
+  private async loadLatestReplayAiMessage(
+    submissionId: string,
+    messageType: "review" | "solution"
+  ): Promise<ReplayAiMessage | null> {
+    const typeFilter =
+      messageType === "solution"
+        ? "AND am.token_usage->>'type' = 'solution'"
+        : "AND (am.token_usage->>'type' IS NULL OR am.token_usage->>'type' NOT IN ('solution', 'solution-error'))";
+
+    const result = await query<ReplayAiMessageRow>(
+      `
+        SELECT
+          am.content,
+          am.created_at::text AS "createdAt",
+          am.session_id AS "sessionId",
+          am.token_usage->>'source' AS source,
+          am.token_usage->>'provider' AS provider
+        FROM ai_messages am
+        INNER JOIN ai_sessions s ON s.id = am.session_id
+        WHERE s.context_submission_id = $1
+          AND am.role = 'assistant'
+          ${typeFilter}
+        ORDER BY am.created_at DESC
+        LIMIT 1;
+      `,
+      [submissionId]
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      return null;
+    }
+
+    const source = row.source?.trim();
+    const provider = row.provider?.trim();
+    return {
+      content: row.content,
+      createdAt: row.createdAt,
+      sessionId: row.sessionId,
+      source: source && source.length > 0 ? source : null,
+      provider: provider && provider.length > 0 ? provider : null
+    };
   }
 }

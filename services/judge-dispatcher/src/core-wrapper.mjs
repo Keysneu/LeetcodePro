@@ -105,6 +105,18 @@ function buildCppSolutionMain(problemSlug, meta) {
       lines.push("    if (__result == nullptr) {");
       lines.push("      __print_json(nullptr);");
       lines.push("    } else {");
+      lines.push("      const int __entry_index = __list_index_of_node(__head, __result);");
+      lines.push("      if (__entry_index < 0) {");
+      lines.push("        __print_json(nullptr);");
+      lines.push("      } else {");
+      lines.push("        __print_json(__entry_index);");
+      lines.push("      }");
+      lines.push("    }");
+      lines.push("    return 0;");
+    } else if (problemSlug === "intersection-of-two-linked-lists") {
+      lines.push("    if (__result == nullptr) {");
+      lines.push("      __print_json(nullptr);");
+      lines.push("    } else {");
       lines.push("      __print_json(__result->val);");
       lines.push("    }");
       lines.push("    return 0;");
@@ -495,6 +507,26 @@ ListNode* __build_list_from_json(const json& value, bool make_cycle, int cycle_p
   }
 
   return head;
+}
+
+int __list_index_of_node(ListNode* head, ListNode* target) {
+  if (target == nullptr) {
+    return -1;
+  }
+
+  std::unordered_set<ListNode*> visited;
+  ListNode* cursor = head;
+  int index = 0;
+
+  while (cursor != nullptr && visited.insert(cursor).second) {
+    if (cursor == target) {
+      return index;
+    }
+    cursor = cursor->next;
+    index += 1;
+  }
+
+  return -1;
 }
 
 std::pair<ListNode*, ListNode*> __build_intersection_lists(const std::unordered_map<std::string, json>& kv) {
@@ -1241,6 +1273,27 @@ def _list_to_jsonable(head):
     return values
 
 
+def _list_index_of_node(head, target):
+    if target is None:
+        return None
+
+    seen = set()
+    cursor = head
+    index = 0
+
+    while cursor is not None:
+        node_id = id(cursor)
+        if node_id in seen:
+            break
+        if cursor is target:
+            return index
+        seen.add(node_id)
+        cursor = cursor.next
+        index += 1
+
+    return None
+
+
 def _tree_to_jsonable(root):
     if root is None:
         return None
@@ -1323,6 +1376,7 @@ def _run_solution(meta):
 
     args = []
     root_value = None
+    head_value = None
 
     for param in params:
         name = param["name"]
@@ -1343,6 +1397,8 @@ def _run_solution(meta):
 
         if name == "root":
             root_value = value
+        if name == "head":
+            head_value = value
 
         args.append(value)
 
@@ -1366,6 +1422,8 @@ def _run_solution(meta):
     if return_type == "void":
         output = _to_jsonable(args[0] if args else None)
     elif slug == "linked-list-cycle-ii":
+        output = _list_index_of_node(head_value, result)
+    elif slug == "intersection-of-two-linked-lists":
         output = None if result is None else result.val
     elif slug == "lowest-common-ancestor-of-a-binary-tree":
         output = None if result is None else result.val

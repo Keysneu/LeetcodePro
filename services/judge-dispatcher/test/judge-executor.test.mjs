@@ -45,6 +45,16 @@ test("python acm mode reports WA for wrong output", async () => {
   assert.equal(result.status, "WA");
   assert.equal(result.passedCount, 0);
   assert.ok(result.caseResults.every((item) => item.status === "WA"));
+  assert.ok(result.caseResults.every((item) => typeof item.actualOutput === "string" && item.actualOutput.length > 0));
+
+  const caseMemories = result.caseResults
+    .map((item) => item.memoryKb)
+    .filter((value) => typeof value === "number" && Number.isFinite(value) && value > 0);
+  if (caseMemories.length > 0) {
+    assert.equal(result.memoryKb, Math.max(...caseMemories));
+  } else {
+    assert.equal(result.memoryKb, null);
+  }
 });
 
 test("cpp core mode accepts leetcode style solution class", async () => {

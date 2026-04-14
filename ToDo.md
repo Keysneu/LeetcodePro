@@ -1,6 +1,6 @@
 # LeetCodePro MVP 开发 ToDo
 
-更新时间：2026-03-31（Asia/Shanghai）
+更新时间：2026-04-14（Asia/Shanghai）
 
 状态约定：
 - `[ ]` 未开始
@@ -22,10 +22,12 @@
 ### 2.2 开发阶段
 - [x] 工程初始化（Monorepo + 基础依赖）
 - [x] 前端题目页（题面/编辑器/提交）
-- [/] 后端核心 API（题目、提交、结果查询、后台判题数据）
-- [/] 判题链路（入队、执行、回写）
-- [/] AI 找 Bug 链路（基于提交结果的诊断）
-- [/] 端到端联调与验收
+- [x] 后端核心 API（题目、提交、结果查询、后台判题数据）
+- [x] 判题链路（入队、执行、回写）
+- [x] AI 找 Bug 链路（基于提交结果的诊断）
+- [x] 进度页可视化（打卡热力图 + 能力雷达图）
+- [x] 题目掌握度可视化（题库汇总状态 + 题目页 4 轨道细分）
+- [x] 端到端联调与验收
 
 ## 3. P0 任务清单（按执行顺序）
 
@@ -56,6 +58,11 @@
 - [x] Monaco 编辑器集成（支持 C++/Python）
 - [x] 支持 `核心代码模式 / ACM 模式` 切换
 - [x] 提交按钮与结果展示区域
+- [x] 题库页展示优化：按题型分组（首标签）+ 组内难度排序 + 知识点标签组件替换 slug 列
+- [x] 判题结果专业化：失败样例（输入/输出/期望）可视化 + 字符级红绿 diff + 隐藏用例折叠展开
+- [x] 页面去调试信息：移除“控制台”占位与 `Submission ID/实际 Provider/来源/会话` 展示
+- [x] 前端空间自适应优化：全站流式扩展（去除 `1400px` 上限）+ 做题页可拖拽分栏（默认 40/60，支持持久化）
+- [x] 做题页纵向可拖拽比例扩展：代码框/运行分析（默认 65/35）+ 题解笔记/AI题解（默认 50/50），支持持久化与双击复位
 
 验收标准：
 - [x] 用户可完成“选题-写码-提交-看到判题状态/结果”
@@ -74,7 +81,7 @@
 
 ### P0-5 AI 找 Bug 链路
 - [x] 前端“AI 找 Bug”入口
-- [/] API 聚合上下文（题目 + 用户代码 + 失败样例 + 错误信息）
+- [x] API 聚合上下文（题目 + 用户代码 + 失败样例 + 错误信息）
 - [x] AI Tutor 接入远程大模型（`vLLM/MiniMax` 可切换，OpenAI 兼容接口）
 - [x] AI 服务返回诊断（SSE 流式）
 - [x] 落库 AI 会话与消息记录（`ai_sessions`、`ai_messages`）
@@ -95,7 +102,62 @@
 - [x] 连续 10 次提交流程可稳定跑通（`npm run e2e:stability` 实测 10/10 通过）
 - [x] 主流程无阻塞级 Bug（无法提交、结果不回写、AI 无响应）
 
+## 3.1 P1 任务清单（AI 诊断质量评估与 Prompt Injection 对抗）
+
+### P1-1 AI 诊断质量评估
+- [x] 新增质量评估脚本：`scripts/e2e/ai-review-quality-eval.mjs`
+- [x] 新增一键命令：`npm run e2e:ai-quality`
+- [x] 首轮质量闸门通过（`overallScore=100`，阈值 `minCaseScore=70` / `minOverallScore=80`）
+
+### P1-2 Prompt Injection 对抗测试
+- [x] 新增对抗测试脚本：`scripts/e2e/prompt-injection-attack.mjs`
+- [x] 新增一键命令：`npm run e2e:prompt-injection`
+- [x] API 层新增注入片段脱敏（`errorMessage`/`failureSignals`）并在对抗闸门通过（`overallScore=100`）
+
+## 3.2 P2 任务清单（进度页可视化）
+
+### P2-1 打卡热力图 + 能力雷达图
+- [x] API 新增进度聚合接口：`GET /api/progress/overview?timezone=<IANA>`
+- [x] 统计口径落地：热力图按“每日 AC 提交次数累计”，雷达图按“标签 AC 覆盖率（近90天去重题数 / 标签全库总题数）”
+- [x] 前端 `/progress` 接入 ECharts（热力图 + Top8 标签雷达图）与加载/错误/空态
+- [x] API 单元测试补齐：热力图计数、雷达分母分子、90天补齐、时区跨天分桶
+- [x] README / TECH_DESIGN / ToDo 同步更新验证说明与里程碑状态
+
 ## 4. 本周开发记录（Progress Log）
+
+### 2026-04-14
+- [x] 完成 `GET /api/progress/overview` 聚合接口，支持 `timezone` 参数校验与 90 天窗口统计
+- [x] 新增 `apps/api/src/progress-metrics.ts` 与单元测试，覆盖重复 AC 计数、标签去重、时区分桶与连续日期补齐
+- [x] 进度页改造为客户端仪表盘：接入浏览器时区、ECharts 热力图、Top8 标签雷达图
+- [x] 前端新增 `progress-api` 类型与请求封装，进度页支持 loading/error 重试
+- [x] 验证通过：`npm run test -w @leetcodepro/api`、`npm run check -w @leetcodepro/api`、`npm run check -w @leetcodepro/web`
+- [x] 题库页展示优化完成：`/problems` 改为按题型分组展示（首标签为题型，空标签归“未分类”），组内按 `简单->中等->困难` 且同难度按题号升序
+- [x] 题库“题目标识”列替换为“知识点”标签组件，显示每题全部标签；README/ToDo 同步更新验证步骤
+- [x] 判题器数据增强：`submission_case_results` 新增 `actual_output`，`/api/submissions/:id` 新增 `failureCase`（输入/输出/期望/stderr）
+- [x] 判题内存改为真实采集：每个 case 记录 `memoryKb`，提交结果展示峰值内存（可采集环境）
+- [x] 前端判题结果重构：失败样例卡片 + 字符级 diff + 隐藏用例默认折叠；去除调试元信息展示
+- [x] 前端布局自适应升级：`layout/top-nav` 改为全宽流式容器，减少超宽屏留白
+- [x] 做题页新增可拖拽左右分栏：默认 `40/60`、最小宽度约束、比例 `localStorage` 持久化、双击恢复默认、移动端自动回退堆叠
+- [x] 做题页分栏能力复用扩展：新增两组纵向可拖拽分栏（代码框/运行分析、题解笔记/AI题解），移动端自动回退堆叠
+- [x] 修复失败样例展示不一致：当 `actualOutput` 缺失但 `stderr` 为 `Expected ..., got ...` 时，自动回填并展示“你的输出”
+- [x] 修复“判题完成内存显示 `- KB`”：定位为 Judge 旧进程未重启导致，重启后 `memoryKb` 恢复为真实值
+- [x] 判题内存采集增强：`sandbox-runner` 增加 `memory.current` 兜底，并支持 marker 粘连场景解析
+- [x] Judge 防复发改进：`dev` 脚本优先 `node --watch`（`EMFILE` 自动回退 `node server.mjs`），`/health` 新增 `startedAt` 与 `memoryProbeVersion`
+- [x] README 新增 Judge 重启与内存校验指引（含提交查询与 `submission_case_results.memory_kb` 入库验证）
+- [x] 新增题目掌握度聚合模块：统一输出 `summary + tracks`，口径覆盖“一遍过/两次过/多次过/最近状态”
+- [x] 扩展题库接口：`GET /api/problems` 返回 `masterySummary`；新增 `GET /api/problems/:slug/mastery`
+- [x] 题库页状态列升级为真实掌握度徽标，并显示最近状态（`最近: AC/WA/...`）
+- [x] 题目页新增“题目掌握度”卡片，展示 `core-cpp/core-python/acm-cpp/acm-python` 四轨道细分并在提交终态后自动刷新
+- [x] 新增索引迁移：`007_add_submissions_mastery_lookup_index.sql`（`submissions(user_id, problem_id, mode, language, created_at, id)`）
+- [x] 验证通过：`npm run test -w @leetcodepro/api`、`npm run check -w @leetcodepro/api`
+
+### 2026-04-04
+- [x] P0 收尾复测：`npm run e2e:minimal` 全链路通过（题目查询 -> 提交 -> 判题 -> AI 找 Bug）
+- [x] 确认 `P0-5` API 聚合上下文闭环：优先使用提交实录补齐 `code/status/runtime/passedCount/failureSignals`
+- [x] P1-1 完成：新增 `scripts/e2e/ai-review-quality-eval.mjs` 与 `npm run e2e:ai-quality`，首轮评分 `overallScore=100`
+- [x] P1-2 完成：新增 `scripts/e2e/prompt-injection-attack.mjs` 与 `npm run e2e:prompt-injection`，对抗评分 `overallScore=100`
+- [x] API 注入防护加固：`apps/api/src/ai.controller.ts` 新增注入片段脱敏（`errorMessage/failureSignals`）
+
 
 ### 2026-03-29
 - [x] 完成 PRD 梳理
@@ -173,6 +235,8 @@
 - [x] 前端第二轮 LeetCode 风格增强：题面/代码区引入 tab 布局、题库列表补充通过率列与头部信息条、运行分析面板层级优化
 - [x] 新增夜间/白天主题切换：右上角按钮切换 + `localStorage` 持久化 + Monaco 主题联动（`vs-dark/vs`）
 - [x] 新增提交记录功能：API `GET /api/submissions/history/by-problem/:slug` + 题目页“提交记录”tab 展示历史提交状态与运行结果
+- [x] 新增提交记录回放联动：点击历史提交先确认后回放，自动回填编辑器代码并同步显示该次提交的判题结果、AI 找 Bug 与 AI 题解（无历史题解时空态+手动生成）
+- [x] 提交记录回放确认交互升级：用站内居中模态弹窗替换浏览器原生 `confirm`，支持 `Esc/遮罩` 关闭与加载中禁用
 - [x] 新增题解功能：AI Tutor `POST /solution` / `POST /solution/stream`、API 代理 `POST /api/ai/solution` / `POST /api/ai/solution/stream`、前端“题解”tab 流式展示
 - [x] 题解与提交记录联调验收通过：`npm run check -w @leetcodepro/api`、`npm run check -w @leetcodepro/web`、`npm run check -w @leetcodepro/ai-tutor`
 - [x] 新增笔记映射功能：API `POST /api/notes/upload` / `GET /api/notes/problem/:slug`，支持 Markdown 分段匹配题目并落库 `user_notes`、`user_problem_notes`
@@ -192,6 +256,8 @@
 - [x] 新增判题回归测试：覆盖非旧题核心判题（`jump-game-ii`）与设计题核心判题（`min-stack`）
 - [x] 前端题面渲染优化：题目描述按 Markdown 渲染并做格式归一化（修复制表符列表显示异常）
 - [x] 判题结果展示优化：移除 600 字错误摘要截断，提升沙箱输出上限到 1MB，并在前端以可滚动 `pre` 完整展示错误信息
+- [x] 修复核心判题元数据缺失：补齐 `linked-list-cycle-ii` 与 `intersection-of-two-linked-lists` 的 `class Solution` 方法签名，解决 `Invalid solution metadata for class Solution`
+- [x] 修复 `linked-list-cycle-ii` 判题口径：由“节点值”改为“入环索引”比较，并修正错误隐藏用例期望值（`head=[1,2], pos=0`）
 - [x] 笔记匹配规则优化：支持 `题号.题目名`/`题号.题目名（附注）` 作为题目边界，按“两个题号行之间内容”归属前题
 - [x] 新增 API 单元测试：`notes-matcher` 覆盖题号边界切分与标题括号后缀匹配
 - [x] 新增后台判题数据接口：`GET /api/admin/problems`、`GET /api/admin/problems/:slug/judge-data`（`x-admin-key` 鉴权）
@@ -206,4 +272,6 @@
 
 ## 6. 下一步（立即执行）
 
-- [ ] 进入 P1：开始补齐 AI 诊断质量评估与 Prompt Injection 对抗测试
+- [x] P1-2：完成 Prompt Injection 对抗测试脚本 + 阻断规则 + 报告沉淀
+- [x] P2-1：完成进度页热力图与能力雷达图（接口 + 前端 + 测试 + 文档）
+- [ ] P2-2：根据真实用户反馈迭代雷达维度映射（是否固定基础能力类目）

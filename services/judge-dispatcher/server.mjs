@@ -3,7 +3,7 @@ import amqp from "amqplib";
 import pg from "pg";
 
 import { judgeSubmissionWithCases } from "./src/judge-executor.mjs";
-import { getSandboxExecutionMode, getSandboxSeccompProfile } from "./src/sandbox-runner.mjs";
+import { getSandboxExecutionMode, getSandboxSeccompProfile, MEMORY_PROBE_VERSION } from "./src/sandbox-runner.mjs";
 
 const { Pool } = pg;
 
@@ -11,6 +11,7 @@ const port = Number(process.env.JUDGE_PORT ?? 8080);
 const rabbitmqUrl = process.env.RABBITMQ_URL ?? "amqp://guest:guest@localhost:5672";
 const queueName = process.env.JUDGE_QUEUE_NAME ?? "judge.submissions.v1";
 const postgresUrl = process.env.POSTGRES_URL ?? "postgresql://postgres:postgres@localhost:5432/leetcodepro";
+const startedAt = new Date().toISOString();
 
 const pool = new Pool({
   connectionString: postgresUrl,
@@ -129,9 +130,10 @@ async function processSubmission(submissionId) {
             status,
             runtime_ms,
             memory_kb,
-            stderr
+            stderr,
+            actual_output
           )
-          VALUES($1, $2, $3, $4, $5, $6);
+          VALUES($1, $2, $3, $4, $5, $6, $7);
         `,
         [
           submission.id,
@@ -139,7 +141,8 @@ async function processSubmission(submissionId) {
           caseResult.status,
           caseResult.runtimeMs,
           caseResult.memoryKb,
-          caseResult.stderr
+          caseResult.stderr,
+          caseResult.actualOutput
         ]
       );
     }
@@ -287,6 +290,8 @@ const server = createServer((req, res) => {
         status: ready ? "ok" : "degraded",
         executionMode: getSandboxExecutionMode(),
         seccompProfile: getSandboxSeccompProfile(),
+        startedAt,
+        memoryProbeVersion: MEMORY_PROBE_VERSION,
         queueName,
         lastConsumedAt,
         lastError
@@ -302,6 +307,8 @@ const server = createServer((req, res) => {
 server.listen(port, "0.0.0.0", () => {
   // eslint-disable-next-line no-console
   console.log(`Judge dispatcher ready on http://localhost:${port}/health`);
+  // eslint-disable-next-line no-console
+  console.log(`Judge runtime fingerprint: startedAt=${startedAt}, memoryProbeVersion=${MEMORY_PROBE_VERSION}`);
   void ensureConsumer();
 });
 

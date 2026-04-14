@@ -17,7 +17,9 @@
     "check": "npm run check --workspaces",
     "e2e:minimal": "node scripts/e2e/minimal-flow.mjs",
     "e2e:stability": "node scripts/e2e/stability-acceptance.mjs",
-    "demo:mvp": "node scripts/e2e/mvp-demo.mjs"
+    "demo:mvp": "node scripts/e2e/mvp-demo.mjs",
+    "e2e:ai-quality": "node scripts/e2e/ai-review-quality-eval.mjs",
+    "e2e:prompt-injection": "node scripts/e2e/prompt-injection-attack.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

@@ -36,7 +36,8 @@ function buildCaseFailureResults(testCases, status, stderr) {
     status,
     runtimeMs: null,
     memoryKb: null,
-    stderr
+    stderr,
+    actualOutput: null
   }));
 }
 
@@ -46,12 +47,16 @@ function aggregateSubmissionResult(caseResults) {
 
   const status = firstFailure ? firstFailure.status : "AC";
   const runtimeMs = caseResults.reduce((sum, item) => sum + (item.runtimeMs ?? 0), 0);
+  const memoryValues = caseResults
+    .map((item) => item.memoryKb)
+    .filter((value) => typeof value === "number" && Number.isFinite(value) && value > 0);
+  const peakMemoryKb = memoryValues.length > 0 ? Math.max(...memoryValues) : null;
 
   return {
     status,
     passedCount,
     runtimeMs: runtimeMs > 0 ? runtimeMs : null,
-    memoryKb: null,
+    memoryKb: peakMemoryKb,
     errorMessage: firstFailure?.stderr ?? null,
     caseResults
   };
@@ -185,33 +190,46 @@ async function prepareExecutable(submission, workDir) {
 }
 
 function judgeSingleCase(adapter, expectedNormalized, executionResult) {
+  const normalizedActual = normalizeActualOutput(adapter, executionResult.stdout);
+
   if (executionResult.timedOut) {
     return {
       status: "TLE",
-      stderr: `Time limit exceeded (${CASE_TIMEOUT_MS}ms).`
+      stderr: `Time limit exceeded (${CASE_TIMEOUT_MS}ms).`,
+      actualOutput: normalizedActual
     };
   }
 
   if (executionResult.exitCode !== 0) {
     return {
       status: "RE",
-      stderr: summarizeStderr(executionResult.stderr)
+      stderr: summarizeStderr(executionResult.stderr),
+      actualOutput: normalizedActual
     };
   }
-
-  const normalizedActual = adapter.normalizeAcmOutput(executionResult.stdout);
 
   if (normalizedActual === expectedNormalized) {
     return {
       status: "AC",
-      stderr: null
+      stderr: null,
+      actualOutput: normalizedActual
     };
   }
 
   return {
     status: "WA",
-    stderr: `Expected ${expectedNormalized}, got ${normalizedActual}`
+    stderr: `Expected ${expectedNormalized}, got ${normalizedActual}`,
+    actualOutput: normalizedActual
   };
+}
+
+function normalizeActualOutput(adapter, stdout) {
+  try {
+    return adapter.normalizeAcmOutput(stdout);
+  } catch {
+    const raw = String(stdout ?? "").trim();
+    return raw.length > 0 ? raw : null;
+  }
 }
 
 export async function judgeSubmissionWithCases(submission, testCases) {
@@ -276,8 +294,9 @@ export async function judgeSubmissionWithCases(submission, testCases) {
         caseId: testCase.caseId,
         status: judged.status,
         runtimeMs: executionResult.timedOut ? CASE_TIMEOUT_MS : Math.max(1, executionResult.durationMs),
-        memoryKb: null,
-        stderr: judged.stderr
+        memoryKb: executionResult.memoryKb ?? null,
+        stderr: judged.stderr,
+        actualOutput: judged.actualOutput
       });
     }
 

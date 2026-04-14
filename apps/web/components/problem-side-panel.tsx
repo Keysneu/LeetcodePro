@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import ProblemResizableLayout from "@/components/problem-resizable-layout";
 import {
   AI_PROVIDER_SYNC_EVENT,
   AiProvider,
@@ -11,6 +12,7 @@ import {
   readPreferredAiProvider,
   savePreferredAiProvider
 } from "@/lib/ai-provider";
+import { emitSubmissionReplay, type SubmissionReplayResponse } from "@/lib/submission-replay";
 
 type ProblemDetail = {
   leetcodeId: number | null;
@@ -84,6 +86,8 @@ type Props = {
   apiBaseUrl: string;
   problem: ProblemDetail;
 };
+
+const SOLUTION_VERTICAL_STORAGE_KEY = "leetcodepro-solution-vertical-ratio";
 
 function parseErrorMessage(payload: unknown): string {
   if (typeof payload === "string") {
@@ -237,6 +241,64 @@ function modeSupportLabel(modeSupport: ProblemDetail["modeSupport"]): string {
   return "ACM 判题";
 }
 
+type ConfirmReplayDialogProps = {
+  open: boolean;
+  item: SubmissionHistoryItem | null;
+  isLoading: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+};
+
+function ConfirmReplayDialog({ open, item, isLoading, onCancel, onConfirm }: ConfirmReplayDialogProps) {
+  if (!open || !item) {
+    return null;
+  }
+
+  return (
+    <div
+      className="lc-modal-backdrop"
+      onClick={() => {
+        if (!isLoading) {
+          onCancel();
+        }
+      }}
+      aria-hidden="true"
+    >
+      <div
+        className="lc-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="replay-confirm-title"
+        aria-describedby="replay-confirm-description"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h3 id="replay-confirm-title" className="text-base font-semibold text-[var(--lc-text)]">
+          确认回放历史提交
+        </h3>
+        <p id="replay-confirm-description" className="mt-2 text-sm leading-6 text-[var(--lc-text-muted)]">
+          将覆盖当前编辑器代码、判题结果与 AI 分析。是否继续？
+        </p>
+        <div className="mt-3 rounded-lg border bg-[var(--lc-surface-soft)] px-3 py-2 text-xs text-[var(--lc-text-muted)]">
+          <p>
+            目标提交：<span className="font-mono">{item.id}</span>
+          </p>
+          <p className="mt-1">
+            状态：{item.status} · 提交时间：{formatTime(item.createdAt)}
+          </p>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" className="lc-btn-secondary h-9 px-4" onClick={onCancel} disabled={isLoading} autoFocus>
+            取消
+          </button>
+          <button type="button" className="lc-btn-primary h-9 px-4" onClick={onConfirm} disabled={isLoading}>
+            {isLoading ? "回放中..." : "确认覆盖并回放"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
   const [activeTab, setActiveTab] = useState<TabKey>("description");
 
@@ -244,6 +306,10 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyItems, setHistoryItems] = useState<SubmissionHistoryItem[]>([]);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [replayLoadingId, setReplayLoadingId] = useState<string | null>(null);
+  const [pendingReplayItem, setPendingReplayItem] = useState<SubmissionHistoryItem | null>(null);
+  const [isReplayDialogOpen, setIsReplayDialogOpen] = useState(false);
+  const [selectedReplaySubmissionId, setSelectedReplaySubmissionId] = useState<string | null>(null);
 
   const [noteLoading, setNoteLoading] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
@@ -276,6 +342,10 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
     setHistoryError(null);
     setHistoryItems([]);
     setHistoryLoaded(false);
+    setReplayLoadingId(null);
+    setPendingReplayItem(null);
+    setIsReplayDialogOpen(false);
+    setSelectedReplaySubmissionId(null);
 
     setNoteLoading(false);
     setNoteError(null);
@@ -357,6 +427,88 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
     }
   }, [apiBaseUrl, problem.slug]);
 
+  const applyReplaySolution = useCallback((payload: SubmissionReplayResponse) => {
+    const replaySolution = payload.ai.solution;
+    const solutionContent = replaySolution?.content?.trim() ?? "";
+
+    setSolutionLoading(false);
+    setSolutionError(null);
+    setSolutionText(solutionContent.length > 0 ? replaySolution?.content ?? "" : "");
+    setSolutionSource(replaySolution?.source ?? "");
+    setSolutionResolvedProvider(replaySolution?.provider ?? "");
+    setSolutionSessionId(replaySolution?.sessionId ?? "");
+    setSolutionLoaded(true);
+    setSelectedReplaySubmissionId(payload.submission.id);
+    setActiveTab("solution");
+  }, []);
+
+  const replaySubmission = useCallback(
+    async (item: SubmissionHistoryItem) => {
+      setHistoryError(null);
+      setReplayLoadingId(item.id);
+
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/submissions/${item.id}/replay`, {
+          cache: "no-store"
+        });
+        const payload = (await response.json()) as unknown;
+        if (!response.ok) {
+          throw new Error(parseErrorMessage(payload));
+        }
+
+        const data = payload as SubmissionReplayResponse;
+        emitSubmissionReplay({
+          problemSlug: problem.slug,
+          replay: data
+        });
+        applyReplaySolution(data);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "加载提交回放失败。";
+        setHistoryError(message);
+      } finally {
+        setReplayLoadingId(null);
+        setPendingReplayItem(null);
+        setIsReplayDialogOpen(false);
+      }
+    },
+    [apiBaseUrl, applyReplaySolution, problem.slug]
+  );
+
+  const closeReplayDialog = useCallback(() => {
+    if (replayLoadingId !== null) {
+      return;
+    }
+    setPendingReplayItem(null);
+    setIsReplayDialogOpen(false);
+  }, [replayLoadingId]);
+
+  const confirmReplayDialog = useCallback(() => {
+    if (!pendingReplayItem || replayLoadingId !== null) {
+      return;
+    }
+    void replaySubmission(pendingReplayItem);
+  }, [pendingReplayItem, replayLoadingId, replaySubmission]);
+
+  useEffect(() => {
+    if (!isReplayDialogOpen) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || replayLoadingId !== null) {
+        return;
+      }
+      event.preventDefault();
+      setPendingReplayItem(null);
+      setIsReplayDialogOpen(false);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [isReplayDialogOpen, replayLoadingId]);
+
   const generateSolution = useCallback(async () => {
     setSolutionLoading(true);
     setSolutionLoaded(false);
@@ -374,6 +526,7 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
         },
         body: JSON.stringify({
           problemSlug: problem.slug,
+          ...(selectedReplaySubmissionId ? { submissionId: selectedReplaySubmissionId } : {}),
           problemTitle: problem.title,
           modeSupport: problem.modeSupport,
           provider: aiProvider,
@@ -511,6 +664,7 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
           },
           body: JSON.stringify({
             problemSlug: problem.slug,
+            ...(selectedReplaySubmissionId ? { submissionId: selectedReplaySubmissionId } : {}),
             problemTitle: problem.title,
             modeSupport: problem.modeSupport,
             provider: aiProvider,
@@ -552,7 +706,17 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
       setSolutionLoading(false);
       setSolutionLoaded(true);
     }
-  }, [aiProvider, apiBaseUrl, problem.description, problem.modeSupport, problem.sampleInput, problem.sampleOutput, problem.slug, problem.title]);
+  }, [
+    aiProvider,
+    apiBaseUrl,
+    problem.description,
+    problem.modeSupport,
+    problem.sampleInput,
+    problem.sampleOutput,
+    problem.slug,
+    problem.title,
+    selectedReplaySubmissionId
+  ]);
 
   useEffect(() => {
     if (activeTab === "submissions" && !historyLoaded && !historyLoading) {
@@ -651,7 +815,16 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
               ) : (
                 <div className="divide-y">
                   {historyItems.map((item) => (
-                    <div key={item.id} className="space-y-1 p-3 text-xs">
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="block w-full space-y-1 p-3 text-left text-xs transition-colors hover:bg-[var(--lc-surface-soft)]"
+                      onClick={() => {
+                        setPendingReplayItem(item);
+                        setIsReplayDialogOpen(true);
+                      }}
+                      disabled={replayLoadingId !== null}
+                    >
                       <p className="font-mono text-[var(--lc-text-muted)]">{item.id}</p>
                       <p className="flex flex-wrap items-center gap-2">
                         <span className={`rounded border px-2 py-0.5 font-semibold ${statusClass(item.status)}`}>{item.status}</span>
@@ -665,6 +838,9 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
                       <p className="text-[var(--lc-text-muted)]">
                         {formatTime(item.createdAt)} · {item.runtimeMs ?? "-"} ms · {item.memoryKb ?? "-"} KB
                       </p>
+                      <p className="text-[11px] text-[var(--lc-text-muted)]">
+                        {replayLoadingId === item.id ? "回放加载中..." : selectedReplaySubmissionId === item.id ? "当前回放记录" : "点击回放该次提交"}
+                      </p>
                       {item.errorMessage ? (
                         <div className="space-y-1">
                           <p className="text-[var(--lc-danger)]">错误：</p>
@@ -673,7 +849,7 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
                           </pre>
                         </div>
                       ) : null}
-                    </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -683,68 +859,86 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
         ) : null}
 
         {activeTab === "solution" ? (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-[var(--lc-text)]">我的题解笔记</p>
-                <button type="button" className="lc-btn-secondary h-8 px-3 text-xs" onClick={() => void loadProblemNote()} disabled={noteLoading}>
-                  {noteLoading ? "刷新中..." : "刷新笔记"}
-                </button>
-              </div>
-
-              <div className="max-h-[34vh] overflow-y-auto rounded-lg border bg-[var(--lc-surface-soft)] p-3">
-                {noteLoading ? (
-                  <p className="text-sm text-[var(--lc-text-muted)]">正在加载笔记...</p>
-                ) : problemNote ? (
-                  <div className="lc-markdown text-sm text-[var(--lc-text)]">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{problemNote.contentMd}</ReactMarkdown>
-                  </div>
-                ) : (
-                  <p className="text-sm text-[var(--lc-text-muted)]">当前题目还没有匹配到个人笔记。请先到首页上传 Markdown 笔记，然后回到这里查看。</p>
-                )}
-              </div>
-
-              {problemNote ? (
-                <p className="text-xs text-[var(--lc-text-muted)]">
-                  来源：{problemNote.sourceFilename} · 匹配段落：{problemNote.matchedHeading} · 更新时间：{formatTime(problemNote.updatedAt)}
-                </p>
-              ) : null}
-              {noteError ? <p className="text-sm text-[var(--lc-danger)]">{noteError}</p> : null}
-            </div>
-
-            <div className="space-y-2 border-t pt-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-[var(--lc-text-muted)]">AI 题解补充（无个人笔记时自动生成，可手动重生成）</p>
-                <div className="flex items-center gap-2">
-                  <select className="lc-select h-8 min-w-[130px] text-xs" value={aiProvider} onChange={(event) => handleProviderChange(event.target.value as AiProvider)}>
-                    <option value="vllm">vLLM（远程）</option>
-                    <option value="minimax">MiniMax（远程）</option>
-                  </select>
-                  <button type="button" className="lc-btn-info h-8 px-3 text-xs" onClick={() => void generateSolution()} disabled={solutionLoading}>
-                    {solutionLoading ? "生成中..." : solutionLoaded ? "重新生成" : "生成题解"}
+          <div className="lg:h-[calc(100vh-16.5rem)]">
+            <ProblemResizableLayout
+              direction="vertical"
+              storageKey={SOLUTION_VERTICAL_STORAGE_KEY}
+              defaultRatio={0.5}
+              minPrimaryPx={220}
+              minSecondaryPx={220}
+              minRatio={0.3}
+              maxRatio={0.7}
+              dividerAriaLabel="拖拽调整题解笔记与 AI 题解区域高度"
+              className="h-full"
+            >
+              <div className="flex h-full min-h-0 flex-col space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-[var(--lc-text)]">我的题解笔记</p>
+                  <button type="button" className="lc-btn-secondary h-8 px-3 text-xs" onClick={() => void loadProblemNote()} disabled={noteLoading}>
+                    {noteLoading ? "刷新中..." : "刷新笔记"}
                   </button>
                 </div>
+
+                <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border bg-[var(--lc-surface-soft)] p-3">
+                  {noteLoading ? (
+                    <p className="text-sm text-[var(--lc-text-muted)]">正在加载笔记...</p>
+                  ) : problemNote ? (
+                    <div className="lc-markdown text-sm text-[var(--lc-text)]">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{problemNote.contentMd}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[var(--lc-text-muted)]">当前题目还没有匹配到个人笔记。请先到首页上传 Markdown 笔记，然后回到这里查看。</p>
+                  )}
+                </div>
+
+                {problemNote ? (
+                  <p className="text-xs text-[var(--lc-text-muted)]">
+                    来源：{problemNote.sourceFilename} · 匹配段落：{problemNote.matchedHeading} · 更新时间：{formatTime(problemNote.updatedAt)}
+                  </p>
+                ) : null}
+                {noteError ? <p className="text-sm text-[var(--lc-danger)]">{noteError}</p> : null}
               </div>
 
-              <div className="max-h-[34vh] overflow-y-auto rounded-lg border bg-[var(--lc-surface-soft)] p-3">
-                {solutionText ? (
-                  <div className="lc-markdown text-sm text-[var(--lc-text)]">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{solutionText}</ReactMarkdown>
+              <div className="flex h-full min-h-0 flex-col space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-[var(--lc-text-muted)]">AI 题解补充（无个人笔记时自动生成，可手动重生成）</p>
+                  <div className="flex items-center gap-2">
+                    <select className="lc-select h-8 min-w-[130px] text-xs" value={aiProvider} onChange={(event) => handleProviderChange(event.target.value as AiProvider)}>
+                      <option value="vllm">vLLM（远程）</option>
+                      <option value="minimax">MiniMax（远程）</option>
+                    </select>
+                    <button type="button" className="lc-btn-info h-8 px-3 text-xs" onClick={() => void generateSolution()} disabled={solutionLoading}>
+                      {solutionLoading ? "生成中..." : solutionLoaded ? "重新生成" : "生成题解"}
+                    </button>
                   </div>
-                ) : (
-                  <p className="text-sm text-[var(--lc-text-muted)]">点击“生成题解”后可查看 AI 补充讲解。</p>
-                )}
-              </div>
+                </div>
 
-              <p className="text-xs text-[var(--lc-text-muted)]">模型：{aiProviderLabel(aiProvider)}</p>
-              {solutionResolvedProvider ? <p className="text-xs text-[var(--lc-text-muted)]">实际 Provider：{solutionResolvedProvider}</p> : null}
-              {solutionSource ? <p className="text-xs text-[var(--lc-text-muted)]">来源：{solutionSource}</p> : null}
-              {solutionSessionId ? <p className="font-mono text-xs text-[var(--lc-text-muted)]">会话：{solutionSessionId}</p> : null}
-              {solutionError ? <p className="text-sm text-[var(--lc-danger)]">{solutionError}</p> : null}
-            </div>
+                <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border bg-[var(--lc-surface-soft)] p-3">
+                  {solutionText ? (
+                    <div className="lc-markdown text-sm text-[var(--lc-text)]">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{solutionText}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[var(--lc-text-muted)]">
+                      {selectedReplaySubmissionId ? "该提交暂无 AI 题解，点击“生成题解”手动生成。" : "点击“生成题解”后可查看 AI 补充讲解。"}
+                    </p>
+                  )}
+                </div>
+
+                <p className="text-xs text-[var(--lc-text-muted)]">模型：{aiProviderLabel(aiProvider)}</p>
+                {solutionError ? <p className="text-sm text-[var(--lc-danger)]">{solutionError}</p> : null}
+              </div>
+            </ProblemResizableLayout>
           </div>
         ) : null}
       </div>
+      <ConfirmReplayDialog
+        open={isReplayDialogOpen}
+        item={pendingReplayItem}
+        isLoading={replayLoadingId !== null}
+        onCancel={closeReplayDialog}
+        onConfirm={confirmReplayDialog}
+      />
     </section>
   );
 }

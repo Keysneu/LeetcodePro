@@ -89,7 +89,7 @@ export default async function AdminProblemsPage({ searchParams }: Props) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(340px,34%)_1fr]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(320px,32%)_1fr] 2xl:grid-cols-[minmax(340px,28%)_1fr]">
         <div className="lc-card overflow-hidden">
           <div className="lc-card-header bg-[var(--lc-surface-soft)]">
             <span>题目列表</span>

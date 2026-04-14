@@ -1,5 +1,6 @@
 import { Controller, Get, NotFoundException, Param } from "@nestjs/common";
 import { query } from "./db";
+import { buildMasteryByProblem, buildProblemMastery, MasterySubmissionRow } from "./mastery-metrics";
 import { ModeSupport } from "./types";
 
 type ProblemListRow = {
@@ -23,28 +24,98 @@ type PublicCaseRow = {
   sampleOutput: string;
 };
 
+type UserRow = {
+  id: string;
+};
+
+const DEMO_USER_EMAIL = process.env.DEMO_USER_EMAIL ?? "demo@leetcodepro.local";
+
 @Controller("problems")
 export class ProblemsController {
   @Get()
   async listProblems() {
-    const result = await query<ProblemListRow>(
-      `
-        SELECT
-          id,
-          leetcode_id AS "leetcodeId",
-          slug,
-          title,
-          difficulty,
-          tags,
-          mode_support AS "modeSupport"
-        FROM problems
-        ORDER BY COALESCE(leetcode_id, 2147483647) ASC, created_at ASC;
-      `
+    const userId = await this.getOrCreateDemoUserId();
+    const [problemsResult, submissionsResult] = await Promise.all([
+      query<ProblemListRow>(
+        `
+          SELECT
+            id,
+            leetcode_id AS "leetcodeId",
+            slug,
+            title,
+            difficulty,
+            tags,
+            mode_support AS "modeSupport"
+          FROM problems
+          ORDER BY COALESCE(leetcode_id, 2147483647) ASC, created_at ASC;
+        `
+      ),
+      query<MasterySubmissionRow>(
+        `
+          SELECT
+            submissions.id,
+            submissions.problem_id AS "problemId",
+            submissions.mode,
+            submissions.language,
+            submissions.status,
+            submissions.created_at::text AS "createdAt"
+          FROM submissions
+          WHERE submissions.user_id = $1;
+        `,
+        [userId]
+      )
+    ]);
+
+    const masteryByProblem = buildMasteryByProblem(
+      problemsResult.rows.map((problem) => ({ id: problem.id, modeSupport: problem.modeSupport })),
+      submissionsResult.rows
     );
 
     return {
-      items: result.rows
+      items: problemsResult.rows.map((problem) => ({
+        ...problem,
+        masterySummary: masteryByProblem.get(problem.id)?.summary
+      }))
     };
+  }
+
+  @Get(":slug/mastery")
+  async getProblemMastery(@Param("slug") slug: string) {
+    const userId = await this.getOrCreateDemoUserId();
+    const problemResult = await query<Pick<ProblemDetailRow, "id" | "modeSupport">>(
+      `
+        SELECT
+          id,
+          mode_support AS "modeSupport"
+        FROM problems
+        WHERE slug = $1
+        LIMIT 1;
+      `,
+      [slug]
+    );
+
+    const problem = problemResult.rows[0];
+    if (!problem) {
+      throw new NotFoundException("Problem not found");
+    }
+
+    const submissionsResult = await query<MasterySubmissionRow>(
+      `
+        SELECT
+          submissions.id,
+          submissions.problem_id AS "problemId",
+          submissions.mode,
+          submissions.language,
+          submissions.status,
+          submissions.created_at::text AS "createdAt"
+        FROM submissions
+        WHERE submissions.user_id = $1
+          AND submissions.problem_id = $2;
+      `,
+      [userId, problem.id]
+    );
+
+    return buildProblemMastery(problem.modeSupport, submissionsResult.rows);
   }
 
   @Get(":slug")
@@ -98,5 +169,20 @@ export class ProblemsController {
         sampleOutput: publicCase?.sampleOutput ?? ""
       }
     };
+  }
+
+  private async getOrCreateDemoUserId(): Promise<string> {
+    const userResult = await query<UserRow>(
+      `
+        INSERT INTO users(email, password_hash, nickname)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (email) DO UPDATE
+          SET updated_at = NOW()
+        RETURNING id;
+      `,
+      [DEMO_USER_EMAIL, "demo-password-not-used", "Demo User"]
+    );
+
+    return userResult.rows[0].id;
   }
 }

@@ -209,6 +209,14 @@ a {
     color: var(--lc-text);
   }
 
+  .lc-modal-backdrop {
+    @apply fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4;
+  }
+
+  .lc-modal {
+    @apply lc-card w-full max-w-lg border px-5 py-4;
+  }
+
   .lc-markdown h1,
   .lc-markdown h2,
   .lc-markdown h3,
