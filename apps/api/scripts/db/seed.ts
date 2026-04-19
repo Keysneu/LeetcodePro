@@ -47,6 +47,32 @@ type SeedDataFile = {
   problems: SeedProblem[];
 };
 
+function stripLegacyInlineArrayBackticks(text: string): string {
+  return text
+    .replace(/`(\[[^`\n]*\][,;:]?)`/g, "$1")
+    .replace(/`(\{[^`\n]*\}[,;:]?)`/g, "$1")
+    .replace(/\[`([^`\n]*\][,;:]?)`/g, "[$1")
+    .replace(/\{`([^`\n]*\}[,;:]?)`/g, "{$1");
+}
+
+function normalizeSeedProblem(problem: SeedProblem): SeedProblem {
+  return {
+    ...problem,
+    descriptionMd: stripLegacyInlineArrayBackticks(problem.descriptionMd),
+    inputSpec: stripLegacyInlineArrayBackticks(problem.inputSpec),
+    outputSpec: stripLegacyInlineArrayBackticks(problem.outputSpec),
+    acmInputSpec: problem.acmInputSpec ? stripLegacyInlineArrayBackticks(problem.acmInputSpec) : undefined,
+    acmOutputSpec: problem.acmOutputSpec ? stripLegacyInlineArrayBackticks(problem.acmOutputSpec) : undefined,
+    acmSampleInput: problem.acmSampleInput ? stripLegacyInlineArrayBackticks(problem.acmSampleInput) : undefined,
+    acmSampleOutput: problem.acmSampleOutput ? stripLegacyInlineArrayBackticks(problem.acmSampleOutput) : undefined,
+    testCases: problem.testCases.map((testCase) => ({
+      ...testCase,
+      input: stripLegacyInlineArrayBackticks(testCase.input),
+      expectedOutput: stripLegacyInlineArrayBackticks(testCase.expectedOutput)
+    }))
+  };
+}
+
 function loadHot100Problems(): SeedProblem[] {
   const dataPath = path.resolve(__dirname, "data/hot100.json");
   const content = readFileSync(dataPath, "utf8");
@@ -60,7 +86,7 @@ function loadHot100Problems(): SeedProblem[] {
     throw new Error(`hot100 seed data has missing entries: ${parsed.missing.join(", ")}`);
   }
 
-  return parsed.problems;
+  return parsed.problems.map(normalizeSeedProblem);
 }
 
 const problems: SeedProblem[] = loadHot100Problems();

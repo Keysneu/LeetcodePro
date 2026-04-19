@@ -8,6 +8,7 @@ import { splitAssistantDisplayContent } from "@/lib/ai-content-split";
 import { AI_PROVIDER_SYNC_EVENT, AiProvider, aiProviderLabel, getDefaultAiProvider, readPreferredAiProvider } from "@/lib/ai-provider";
 import { AI_CONFIG_SYNC_EVENT, listAiConfigs, type AiConfigDefaults, type AiConfigItem } from "@/lib/ai-config";
 import { consumeSseFrames, createStreamTextBatcher } from "@/lib/ai-stream";
+import { normalizeDisplayText, normalizeProblemStatementMarkdown } from "@/lib/output-display";
 import {
   EDITOR_SYNC_EVENT,
   emitSubmissionReplay,
@@ -292,10 +293,7 @@ function parseReviewSsePayload(raw: string): ReviewSsePayload {
 
 
 function normalizeProblemMarkdown(markdown: string): string {
-  return markdown
-    .replace(/\r\n/g, "\n")
-    .replace(/\u00a0/g, " ")
-    .replace(/^\s*[\t ]+-\s+/gm, "- ");
+  return normalizeProblemStatementMarkdown(markdown).replace(/^\s*[\t ]+-\s+/gm, "- ");
 }
 
 function normalizeStreamingMarkdown(markdown: string): string {
@@ -345,6 +343,35 @@ function modeSupportLabel(modeSupport: ProblemDetail["modeSupport"]): string {
     return "核心判题";
   }
   return "ACM 判题";
+}
+
+function toCurrentSubmissionSnapshot(submission: SubmissionReplayResponse["submission"]): SubmissionSyncSnapshot {
+  return {
+    source: "submission",
+    id: submission.id,
+    submissionId: submission.id,
+    problemSlug: submission.problemSlug,
+    language: submission.language,
+    mode: submission.mode,
+    code: submission.code,
+    status: submission.status,
+    runtimeMs: submission.runtimeMs,
+    memoryKb: submission.memoryKb,
+    passedCount: submission.passedCount,
+    totalCount: submission.totalCount,
+    errorMessage: submission.errorMessage,
+    failureCase: submission.failureCase ?? null,
+    failureSignals: submission.failureCase?.stderr
+      ? [
+          {
+            status: submission.failureCase.status,
+            runtimeMs: null,
+            memoryKb: null,
+            signal: submission.failureCase.stderr
+          }
+        ]
+      : []
+  };
 }
 
 type ConfirmReplayDialogProps = {
@@ -763,7 +790,7 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
     const solutionContent = replaySolution?.content?.trim() ?? "";
 
     setSelectedReplaySubmissionId(payload.submission.id);
-    setCurrentSubmission(payload.submission);
+    setCurrentSubmission(toCurrentSubmissionSnapshot(payload.submission));
 
     setReviewLoading(false);
     setReviewError(null);
@@ -1137,12 +1164,12 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
 
   const handleAiReview = useCallback(async () => {
     if (!currentSubmission) {
-      setReviewError("暂无可分析的提交，请先提交或回放一条提交记录。");
+      setReviewError("暂无可分析结果，请先运行测试、提交代码，或回放一条提交记录。");
       return;
     }
 
     if (!TERMINAL_STATUSES.has(currentSubmission.status)) {
-      setReviewError("当前提交仍在判题中，请等待判题完成后再进行 AI 判题。");
+      setReviewError("当前结果仍在处理中，请等待完成后再进行 AI 判题。");
       return;
     }
 
@@ -1173,7 +1200,9 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
         },
         body: JSON.stringify({
           problemSlug: problem.slug,
-          submissionId: currentSubmission.id,
+          ...(currentSubmission.source === "submission" && currentSubmission.submissionId
+            ? { submissionId: currentSubmission.submissionId }
+            : {}),
           ...aiRequestPayload,
           language: currentSubmission.language,
           mode: currentSubmission.mode,
@@ -1184,7 +1213,8 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
           passedCount: currentSubmission.passedCount,
           totalCount: currentSubmission.totalCount,
           errorMessage: currentSubmission.errorMessage,
-          failureCase: currentSubmission.failureCase ?? null
+          failureCase: currentSubmission.failureCase ?? null,
+          failureSignals: currentSubmission.failureSignals ?? []
         })
       });
 
@@ -1325,7 +1355,9 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
             },
             body: JSON.stringify({
               problemSlug: problem.slug,
-              submissionId: currentSubmission.id,
+              ...(currentSubmission.source === "submission" && currentSubmission.submissionId
+                ? { submissionId: currentSubmission.submissionId }
+                : {}),
               ...aiRequestPayload,
               language: currentSubmission.language,
               mode: currentSubmission.mode,
@@ -1336,7 +1368,8 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
               passedCount: currentSubmission.passedCount,
               totalCount: currentSubmission.totalCount,
               errorMessage: currentSubmission.errorMessage,
-              failureCase: currentSubmission.failureCase ?? null
+              failureCase: currentSubmission.failureCase ?? null,
+              failureSignals: currentSubmission.failureSignals ?? []
             })
           });
 
@@ -1421,11 +1454,6 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
       <div className="flex min-h-0 flex-1 flex-col p-4 text-sm sm:p-5">
         {activeTab === "description" ? (
           <>
-            {activeEditorMode === "acm" ? (
-              <div className="mb-3 rounded-lg border border-[var(--lc-accent)]/40 bg-[var(--lc-accent-soft)] p-2 text-xs text-[var(--lc-text)]">
-                当前题面展示：ACM 模式规范（标准输入输出）
-              </div>
-            ) : null}
             <div className="space-y-2 border-b pb-4">
               <h1 className="text-lg font-semibold text-[var(--lc-text)]">
                 {problem.leetcodeId ? `${problem.leetcodeId}. ` : ""}
@@ -1451,25 +1479,25 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
                 <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3 text-xs">
                   <p className="mb-1.5 font-semibold text-[var(--lc-text)]">输入说明</p>
                   <pre className="whitespace-pre-wrap leading-6 text-[var(--lc-text-muted)]">
-                    {activeEditorMode === "acm" ? problem.acmInputSpec || "(无)" : problem.inputSpec || "(无)"}
+                    {normalizeDisplayText(activeEditorMode === "acm" ? problem.acmInputSpec || "(无)" : problem.inputSpec || "(无)")}
                   </pre>
                 </div>
                 <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3 text-xs">
                   <p className="mb-1.5 font-semibold text-[var(--lc-text)]">输出说明</p>
                   <pre className="whitespace-pre-wrap leading-6 text-[var(--lc-text-muted)]">
-                    {activeEditorMode === "acm" ? problem.acmOutputSpec || "(无)" : problem.outputSpec || "(无)"}
+                    {normalizeDisplayText(activeEditorMode === "acm" ? problem.acmOutputSpec || "(无)" : problem.outputSpec || "(无)")}
                   </pre>
                 </div>
                 <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3 text-xs">
                   <p className="mb-1.5 font-semibold text-[var(--lc-text)]">示例输入</p>
                   <pre className="whitespace-pre-wrap leading-6 text-[var(--lc-text-muted)]">
-                    {activeEditorMode === "acm" ? problem.acmSampleInput || "(无)" : problem.sampleInput || "(无)"}
+                    {normalizeDisplayText(activeEditorMode === "acm" ? problem.acmSampleInput || "(无)" : problem.sampleInput || "(无)")}
                   </pre>
                 </div>
                 <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3 text-xs">
                   <p className="mb-1.5 font-semibold text-[var(--lc-text)]">示例输出</p>
                   <pre className="whitespace-pre-wrap leading-6 text-[var(--lc-text-muted)]">
-                    {activeEditorMode === "acm" ? problem.acmSampleOutput || "(无)" : problem.sampleOutput || "(无)"}
+                    {normalizeDisplayText(activeEditorMode === "acm" ? problem.acmSampleOutput || "(无)" : problem.sampleOutput || "(无)")}
                   </pre>
                 </div>
               </div>
@@ -1657,7 +1685,11 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
                   onThinkingExpandedChange={setIsReviewThinkingExpanded}
                   content={reviewDisplay.answer}
                   contentMarkdown={reviewMarkdown}
-                  emptyText={canRunAiReview ? "点击“AI判题”后可查看错误定位与改进建议。" : "暂无可分析提交，请先在右侧提交判题，或在“提交记录”中回放一条提交。"}
+                  emptyText={
+                    canRunAiReview
+                      ? "点击“AI判题”后可查看错误定位与改进建议。"
+                      : "暂无可分析结果，请先在右侧运行测试/提交代码，或在“提交记录”中回放一条提交。"
+                  }
                 />
               </div>
 

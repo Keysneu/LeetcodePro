@@ -88,6 +88,10 @@ export default async function ProblemDetailPage({ params }: Props) {
           problemSlug={problem.slug}
           modeSupport={problem.modeSupport}
           initialCoreCodes={initialCoreCodes}
+          sampleInput={problem.sampleInput}
+          sampleOutput={problem.sampleOutput}
+          acmSampleInput={problem.acmSampleInput}
+          acmSampleOutput={problem.acmSampleOutput}
         />
       </ProblemResizableLayout>
     </section>

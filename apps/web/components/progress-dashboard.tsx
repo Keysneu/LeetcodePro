@@ -383,7 +383,13 @@ export default function ProgressDashboard({ apiBaseUrl }: Props) {
                 {overview?.mastery.dueReviewItems.map((item) => (
                   <tr key={item.problemId} className="border-b last:border-b-0">
                     <td className="px-2 py-2">
-                      <Link className="text-[var(--lc-accent)] hover:underline" href={`/problems/${item.problemSlug}`}>
+                      <Link
+                        className="text-[var(--lc-accent)] hover:underline"
+                        href={`/problems/${item.problemSlug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title="新开标签页打开题目"
+                      >
                         {item.leetcodeId ? `${item.leetcodeId}. ` : ""}
                         {item.problemTitle}
                       </Link>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { buildCharDiffSegments, DiffSegment } from "@/lib/char-diff";
+import { normalizeDisplayText } from "@/lib/output-display";
 
 type SubmissionStatus = "QUEUED" | "RUNNING" | "AC" | "WA" | "TLE" | "RE" | "CE";
 
@@ -58,8 +59,8 @@ function DiffText({ segments }: { segments: DiffSegment[] }) {
 
 export default function SubmissionFailureCasePanel({ failureCase }: Props) {
   const [showHiddenCase, setShowHiddenCase] = useState(false);
-  const actualText = failureCase.actualOutput ?? inferActualOutputFromStderr(failureCase.stderr) ?? "";
-  const expectedText = failureCase.expectedOutput ?? "";
+  const actualText = normalizeDisplayText(failureCase.actualOutput ?? inferActualOutputFromStderr(failureCase.stderr) ?? "");
+  const expectedText = normalizeDisplayText(failureCase.expectedOutput ?? "");
 
   const diff = useMemo(() => buildCharDiffSegments(actualText, expectedText), [actualText, expectedText]);
 
@@ -89,7 +90,7 @@ export default function SubmissionFailureCasePanel({ failureCase }: Props) {
       <div>
         <p className="mb-1 text-[var(--lc-text-muted)]">输入</p>
         <pre className="max-h-[180px] overflow-auto whitespace-pre-wrap break-all rounded border border-[var(--lc-border)] bg-[var(--lc-surface)] p-2 text-xs leading-6 text-[var(--lc-text)]">
-          {failureCase.inputData || "(空)"}
+          {normalizeDisplayText(failureCase.inputData) || "(空)"}
         </pre>
       </div>
 

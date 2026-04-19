@@ -266,7 +266,7 @@ export default async function ProblemsPage({ searchParams }: Props) {
     <section className="lc-page-wide lc-page-section">
       <div className="lc-page-header">
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--lc-text)]">题库</h1>
-        <p className="mt-1 text-sm text-[var(--lc-text-muted)]">按 LeetCode 风格展示题单，点击任意题目进入做题工作区。</p>
+        <p className="mt-1 text-sm text-[var(--lc-text-muted)]">按 LeetCode 风格展示题单，点击任意题目会新开标签页进入做题工作区。</p>
       </div>
 
       <div className="lc-card overflow-hidden">
@@ -307,6 +307,9 @@ export default async function ProblemsPage({ searchParams }: Props) {
                   <Link
                     key={problem.slug}
                     href={`/problems/${problem.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="新开标签页打开题目"
                     className="block border-b px-4 py-3 transition hover:bg-[var(--lc-row-hover)] last:border-b-0"
                   >
                     <div className="flex flex-col gap-3 md:grid md:grid-cols-[minmax(0,1.7fr)_110px_92px_260px] md:items-center">

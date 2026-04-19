@@ -8,6 +8,7 @@ import {
   Post,
   ServiceUnavailableException
 } from "@nestjs/common";
+import { normalizeCustomTestCases, runCustomTestCases } from "./custom-test-runner";
 import { query } from "./db";
 import { JudgeQueueService } from "./judge-queue.service";
 import { CodeMode, Language, ModeSupport, SubmissionStatus } from "./types";
@@ -17,6 +18,10 @@ type CreateSubmissionBody = {
   language?: Language;
   mode?: CodeMode;
   code?: string;
+};
+
+type RunCustomTestsBody = CreateSubmissionBody & {
+  testCases?: unknown;
 };
 
 type ProblemLookupRow = {
@@ -111,30 +116,46 @@ function inferActualOutputFromStderr(stderr: string | null): string | null {
 export class SubmissionsController {
   constructor(private readonly judgeQueueService: JudgeQueueService) {}
 
+  @Post("run-tests")
+  async runCustomTests(@Body() body: RunCustomTestsBody) {
+    if (!body.problemSlug || !body.language || !body.mode || !body.code) {
+      throw new BadRequestException("Missing required fields: problemSlug, language, mode, code");
+    }
+
+    const problem = await this.loadProblem(body.problemSlug);
+    if (!this.isModeSupported(body.mode, problem.modeSupport)) {
+      throw new BadRequestException(`Problem ${body.problemSlug} does not support mode ${body.mode}`);
+    }
+
+    const normalizedCases = normalizeCustomTestCases(body.testCases);
+    const result = await runCustomTestCases(
+      {
+        problemSlug: problem.slug,
+        language: body.language,
+        mode: body.mode,
+        code: body.code
+      },
+      normalizedCases
+    );
+
+    return {
+      item: {
+        ...result,
+        problemSlug: problem.slug,
+        language: body.language,
+        mode: body.mode,
+        executedAt: new Date().toISOString()
+      }
+    };
+  }
+
   @Post()
   async createSubmission(@Body() body: CreateSubmissionBody) {
     if (!body.problemSlug || !body.language || !body.mode || !body.code) {
       throw new BadRequestException("Missing required fields: problemSlug, language, mode, code");
     }
 
-    const problemResult = await query<ProblemLookupRow>(
-      `
-        SELECT
-          id,
-          slug,
-          mode_support AS "modeSupport"
-        FROM problems
-        WHERE slug = $1
-        LIMIT 1;
-      `,
-      [body.problemSlug]
-    );
-
-    const problem = problemResult.rows[0];
-    if (!problem) {
-      throw new BadRequestException("Invalid problemSlug");
-    }
-
+    const problem = await this.loadProblem(body.problemSlug);
     if (!this.isModeSupported(body.mode, problem.modeSupport)) {
       throw new BadRequestException(`Problem ${body.problemSlug} does not support mode ${body.mode}`);
     }
@@ -275,6 +296,28 @@ export class SubmissionsController {
     }
 
     return modeSupport === "ACM" && mode === "acm";
+  }
+
+  private async loadProblem(problemSlug: string): Promise<ProblemLookupRow> {
+    const problemResult = await query<ProblemLookupRow>(
+      `
+        SELECT
+          id,
+          slug,
+          mode_support AS "modeSupport"
+        FROM problems
+        WHERE slug = $1
+        LIMIT 1;
+      `,
+      [problemSlug]
+    );
+
+    const problem = problemResult.rows[0];
+    if (!problem) {
+      throw new BadRequestException("Invalid problemSlug");
+    }
+
+    return problem;
   }
 
   private async getOrCreateDemoUserId(): Promise<string> {

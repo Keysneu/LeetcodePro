@@ -232,22 +232,32 @@ function normalizeActualOutput(adapter, stdout) {
   }
 }
 
-export async function judgeSubmissionWithCases(submission, testCases) {
+function resolveCaseStdin(submission, adapter, testCase, caseInputFormat) {
+  if (submission.mode === "core") {
+    return ensureTrailingNewline(testCase.inputData);
+  }
+
+  if (caseInputFormat === "stdin") {
+    return ensureTrailingNewline(testCase.inputData);
+  }
+
+  return adapter.toAcmStdin(adapter.parseInput(testCase.inputData));
+}
+
+export async function judgeSubmissionWithCases(submission, testCases, options = {}) {
   const adapter = getProblemAdapter(submission.problemSlug);
   if (!adapter) {
     const caseResults = buildCaseFailureResults(testCases, "RE", `Unsupported problem slug: ${submission.problemSlug}`);
     return aggregateSubmissionResult(caseResults);
   }
 
+  const caseInputFormat = options.caseInputFormat === "stdin" ? "stdin" : "problem";
   let structuredCases;
 
   try {
     structuredCases = testCases.map((testCase) => {
       const expected = adapter.parseExpected(testCase.expectedOutput);
-      const stdin =
-        submission.mode === "core"
-          ? ensureTrailingNewline(testCase.inputData)
-          : adapter.toAcmStdin(adapter.parseInput(testCase.inputData));
+      const stdin = resolveCaseStdin(submission, adapter, testCase, caseInputFormat);
 
       return {
         caseId: testCase.id,

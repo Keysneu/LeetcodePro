@@ -5,6 +5,7 @@ import {
   fetchAdminProblemJudgeData,
   fetchAdminProblemList
 } from "@/lib/admin-api";
+import { normalizeDisplayText } from "@/lib/output-display";
 
 type Props = {
   searchParams?: Promise<{ slug?: string | string[] }>;
@@ -50,7 +51,7 @@ function modeSupportLabel(modeSupport: AdminProblemSummary["modeSupport"]): stri
 }
 
 function safeCasePreview(content: string): string {
-  const trimmed = content.trim();
+  const trimmed = normalizeDisplayText(content);
   return trimmed.length > 0 ? trimmed : "(空)";
 }
 
@@ -174,27 +175,27 @@ export default async function AdminProblemsPage({ searchParams }: Props) {
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3">
                   <p className="text-xs text-[var(--lc-text-muted)]">输入规范</p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{judgeData.inputSpec}</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{normalizeDisplayText(judgeData.inputSpec)}</p>
                 </div>
                 <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3">
                   <p className="text-xs text-[var(--lc-text-muted)]">输出规范</p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{judgeData.outputSpec}</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{normalizeDisplayText(judgeData.outputSpec)}</p>
                 </div>
                 <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3">
                   <p className="text-xs text-[var(--lc-text-muted)]">ACM 输入规范</p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{judgeData.acmInputSpec || "(无)"}</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{normalizeDisplayText(judgeData.acmInputSpec || "(无)")}</p>
                 </div>
                 <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3">
                   <p className="text-xs text-[var(--lc-text-muted)]">ACM 输出规范</p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{judgeData.acmOutputSpec || "(无)"}</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{normalizeDisplayText(judgeData.acmOutputSpec || "(无)")}</p>
                 </div>
                 <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3">
                   <p className="text-xs text-[var(--lc-text-muted)]">ACM 示例输入</p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{judgeData.acmSampleInput || "(无)"}</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{normalizeDisplayText(judgeData.acmSampleInput || "(无)")}</p>
                 </div>
                 <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3">
                   <p className="text-xs text-[var(--lc-text-muted)]">ACM 示例输出</p>
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{judgeData.acmSampleOutput || "(无)"}</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{normalizeDisplayText(judgeData.acmSampleOutput || "(无)")}</p>
                 </div>
               </div>
 

@@ -57,6 +57,50 @@ test("python acm mode reports WA for wrong output", async () => {
   }
 });
 
+test("python acm mode accepts raw stdin custom test cases", async () => {
+  const submission = {
+    problemSlug: "two-sum",
+    language: "python",
+    mode: "acm",
+    code: `import sys
+
+data = sys.stdin.read().strip().splitlines()
+if len(data) < 3:
+    print("[]")
+    raise SystemExit(0)
+
+nums = list(map(int, data[1].split()))
+target = int(data[2])
+seen = {}
+
+for index, value in enumerate(nums):
+    need = target - value
+    if need in seen:
+        print(f"[{seen[need]},{index}]")
+        break
+    seen[value] = index
+else:
+    print("[]")
+`
+  };
+
+  const result = await judgeSubmissionWithCases(
+    submission,
+    [
+      {
+        id: "case-1",
+        inputData: "4\n2 7 11 15\n9\n",
+        expectedOutput: "[0,1]"
+      }
+    ],
+    { caseInputFormat: "stdin" }
+  );
+
+  assert.equal(result.status, "AC");
+  assert.equal(result.passedCount, 1);
+  assert.equal(result.caseResults[0].status, "AC");
+});
+
 test("python core mode accepts positional array input for single-parameter problems", async () => {
   const submission = {
     problemSlug: "container-with-most-water",

@@ -9,6 +9,13 @@ export type SubmissionFailureCase = {
   stderr: string | null;
 };
 
+export type SubmissionFailureSignal = {
+  status: SubmissionStatus;
+  runtimeMs: number | null;
+  memoryKb: number | null;
+  signal: string;
+};
+
 export type ReplaySubmission = {
   id: string;
   problemSlug: string;
@@ -35,7 +42,9 @@ export type ReplayAiMessage = {
 };
 
 export type SubmissionSyncSnapshot = {
+  source: "submission" | "run-tests";
   id: string;
+  submissionId?: string | null;
   problemSlug: string;
   language: "cpp" | "python";
   mode: "core" | "acm";
@@ -47,6 +56,7 @@ export type SubmissionSyncSnapshot = {
   totalCount: number;
   errorMessage: string | null;
   failureCase?: SubmissionFailureCase | null;
+  failureSignals?: SubmissionFailureSignal[];
 };
 
 export type SubmissionReplayResponse = {
