@@ -50,6 +50,20 @@ test("intersection-of-two-linked-lists metadata keeps LeetCode getIntersectionNo
   ]);
 });
 
+test("copy-list-with-random-pointer metadata keeps LeetCode solution signature", () => {
+  const meta = coreMetadata["copy-list-with-random-pointer"];
+  assert.ok(meta);
+  assert.equal(meta.kind, "solution");
+  assert.equal(meta.className, "Solution");
+  assert.deepEqual(meta.methods, [
+    {
+      name: "copyRandomList",
+      returnType: "Node*",
+      params: [{ type: "Node*", name: "head" }]
+    }
+  ]);
+});
+
 test("core wrapper normalizes linked-list pointer return values to stable scalars", () => {
   const dummyCode = "class Solution {};";
   const cycleProgram = buildCppCoreProgram("linked-list-cycle-ii", dummyCode);

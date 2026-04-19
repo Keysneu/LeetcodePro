@@ -2,6 +2,7 @@ import { Controller, Get, Headers, NotFoundException, Param } from "@nestjs/comm
 import { ensureAdminAuthorized } from "./admin-auth";
 import { query } from "./db";
 import { ModeSupport } from "./types";
+import { getProblemAcmProjectionSql } from "./problem-acm-schema";
 
 type AdminProblemListRow = {
   id: string;
@@ -26,6 +27,10 @@ type AdminProblemDetailRow = {
   description: string;
   inputSpec: string;
   outputSpec: string;
+  acmInputSpec: string;
+  acmOutputSpec: string;
+  acmSampleInput: string;
+  acmSampleOutput: string;
   totalCases: number;
   publicCases: number;
   hiddenCases: number;
@@ -76,6 +81,7 @@ export class AdminProblemsController {
   @Get(":slug/judge-data")
   async getProblemJudgeData(@Param("slug") slug: string, @Headers("x-admin-key") adminKey: string | undefined) {
     this.ensureAuth(adminKey);
+    const acmProjectionSql = await getProblemAcmProjectionSql("problems.");
 
     const problemResult = await query<AdminProblemDetailRow>(
       `
@@ -89,6 +95,7 @@ export class AdminProblemsController {
           problems.description_md AS description,
           problems.input_spec AS "inputSpec",
           problems.output_spec AS "outputSpec",
+          ${acmProjectionSql},
           COUNT(test_cases.id)::int AS "totalCases",
           COUNT(test_cases.id) FILTER (WHERE test_cases.is_hidden = FALSE)::int AS "publicCases",
           COUNT(test_cases.id) FILTER (WHERE test_cases.is_hidden = TRUE)::int AS "hiddenCases",

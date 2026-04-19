@@ -1,7 +1,10 @@
-import { Controller, Get, NotFoundException, Param } from "@nestjs/common";
+import { Controller, Get, NotFoundException, Param, Query } from "@nestjs/common";
 import { query } from "./db";
 import { buildMasteryByProblem, buildProblemMastery, MasterySubmissionRow } from "./mastery-metrics";
 import { ModeSupport } from "./types";
+import { buildAcmInputSpec, buildAcmOutputSpec, toAcmStdin } from "./acm-format";
+import { getProblemAcmProjectionSql } from "./problem-acm-schema";
+import { normalizeProblemSearchQuery, toProblemSearchPattern } from "./problems-search";
 
 type ProblemListRow = {
   id: string;
@@ -17,6 +20,10 @@ type ProblemDetailRow = ProblemListRow & {
   description: string;
   inputSpec: string;
   outputSpec: string;
+  acmInputSpec: string;
+  acmOutputSpec: string;
+  acmSampleInput: string;
+  acmSampleOutput: string;
 };
 
 type PublicCaseRow = {
@@ -33,7 +40,9 @@ const DEMO_USER_EMAIL = process.env.DEMO_USER_EMAIL ?? "demo@leetcodepro.local";
 @Controller("problems")
 export class ProblemsController {
   @Get()
-  async listProblems() {
+  async listProblems(@Query("q") rawQuery: string | string[] | undefined) {
+    const normalizedQuery = normalizeProblemSearchQuery(rawQuery);
+    const hasSearch = Boolean(normalizedQuery);
     const userId = await this.getOrCreateDemoUserId();
     const [problemsResult, submissionsResult] = await Promise.all([
       query<ProblemListRow>(
@@ -47,8 +56,10 @@ export class ProblemsController {
             tags,
             mode_support AS "modeSupport"
           FROM problems
+          ${hasSearch ? 'WHERE COALESCE(leetcode_id::text, \'\') ILIKE $1 OR title ILIKE $1 OR slug ILIKE $1 OR EXISTS (SELECT 1 FROM unnest(tags) AS tag WHERE tag ILIKE $1)' : ""}
           ORDER BY COALESCE(leetcode_id, 2147483647) ASC, created_at ASC;
-        `
+        `,
+        hasSearch ? [toProblemSearchPattern(normalizedQuery!)] : []
       ),
       query<MasterySubmissionRow>(
         `
@@ -120,6 +131,7 @@ export class ProblemsController {
 
   @Get(":slug")
   async getProblem(@Param("slug") slug: string) {
+    const acmProjectionSql = await getProblemAcmProjectionSql();
     const problemResult = await query<ProblemDetailRow>(
       `
         SELECT
@@ -132,7 +144,8 @@ export class ProblemsController {
           mode_support AS "modeSupport",
           description_md AS description,
           input_spec AS "inputSpec",
-          output_spec AS "outputSpec"
+          output_spec AS "outputSpec",
+          ${acmProjectionSql}
         FROM problems
         WHERE slug = $1
         LIMIT 1;
@@ -162,11 +175,19 @@ export class ProblemsController {
 
     const publicCase = publicCaseResult.rows[0];
 
+    const sampleInput = publicCase?.sampleInput ?? "";
+    const sampleOutput = publicCase?.sampleOutput ?? "";
+    const computedAcmSampleInput = sampleInput ? await toAcmStdin(problem.slug, sampleInput) : null;
+
     return {
       item: {
         ...problem,
-        sampleInput: publicCase?.sampleInput ?? "",
-        sampleOutput: publicCase?.sampleOutput ?? ""
+        sampleInput,
+        sampleOutput,
+        acmInputSpec: problem.acmInputSpec || (computedAcmSampleInput ? buildAcmInputSpec(computedAcmSampleInput) : problem.inputSpec),
+        acmOutputSpec: problem.acmOutputSpec || buildAcmOutputSpec(problem.outputSpec),
+        acmSampleInput: problem.acmSampleInput || computedAcmSampleInput || sampleInput,
+        acmSampleOutput: problem.acmSampleOutput || sampleOutput
       }
     };
   }

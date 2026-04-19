@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ProblemKnowledgeTags from "@/components/problem-knowledge-tags";
+import ProblemSearchBox from "@/components/problem-search-box";
 import { HOT100_TITLE_ZH_BY_ID } from "@/lib/hot100-title-zh";
 
 type ProblemListItem = {
@@ -25,30 +26,54 @@ type ProblemGroup = {
   items: ProblemListItem[];
 };
 
+type Props = {
+  searchParams?: Promise<{ q?: string | string[] }>;
+};
+
 type SubmissionStatus = "QUEUED" | "RUNNING" | "AC" | "WA" | "TLE" | "RE" | "CE";
-type MasterySummaryStatus = "UNTOUCHED" | "ATTEMPTING" | "SOLVED_ONCE" | "SOLVED_TWICE" | "SOLVED_MANY";
+type MasterySummaryStatus = "UNTOUCHED" | "LEARNING" | "REINFORCING" | "MASTERED" | "REVIEW_DUE";
 
 type ProblemMasterySummary = {
   overallStatus: MasterySummaryStatus;
   isSolved: boolean;
   totalAttempts: number;
-  attemptsToFirstAc: number | null;
   latestStatus: SubmissionStatus | null;
+  dueModes: Array<"core" | "acm">;
+  consecutiveAc: number;
+  reviewIntervalDays: number | null;
+  nextReviewAt: string | null;
+  overdueDays: number | null;
 };
 
 const DEFAULT_MASTERY_SUMMARY: ProblemMasterySummary = {
   overallStatus: "UNTOUCHED",
   isSolved: false,
   totalAttempts: 0,
-  attemptsToFirstAc: null,
-  latestStatus: null
+  latestStatus: null,
+  dueModes: [],
+  consecutiveAc: 0,
+  reviewIntervalDays: null,
+  nextReviewAt: null,
+  overdueDays: null
 };
 
-async function getProblems(): Promise<ProblemListResult> {
+function normalizeSearchQuery(rawQuery: string | string[] | undefined): string | null {
+  const query = Array.isArray(rawQuery) ? rawQuery[0] : rawQuery;
+
+  if (typeof query !== "string") {
+    return null;
+  }
+
+  const normalized = query.trim().replace(/\s+/g, " ");
+  return normalized.length > 0 ? normalized : null;
+}
+
+async function getProblems(searchQuery: string | null): Promise<ProblemListResult> {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
+  const searchSuffix = searchQuery ? `?q=${encodeURIComponent(searchQuery)}` : "";
 
   try {
-    const response = await fetch(`${apiBaseUrl}/api/problems`, {
+    const response = await fetch(`${apiBaseUrl}/api/problems${searchSuffix}`, {
       cache: "no-store"
     });
 
@@ -172,16 +197,16 @@ function masteryStatusLabel(status: MasterySummaryStatus): string {
   if (status === "UNTOUCHED") {
     return "未做题";
   }
-  if (status === "ATTEMPTING") {
-    return "尝试中";
+  if (status === "LEARNING") {
+    return "学习中";
   }
-  if (status === "SOLVED_ONCE") {
-    return "一遍过";
+  if (status === "REINFORCING") {
+    return "巩固中";
   }
-  if (status === "SOLVED_TWICE") {
-    return "两次过";
+  if (status === "MASTERED") {
+    return "已熟练";
   }
-  return "多次过";
+  return "待复习";
 }
 
 function masteryStatusClass(status: MasterySummaryStatus): string {
@@ -189,39 +214,80 @@ function masteryStatusClass(status: MasterySummaryStatus): string {
     return "border-[var(--lc-border-soft)] bg-transparent text-[var(--lc-text-muted)]";
   }
 
-  if (status === "ATTEMPTING") {
+  if (status === "LEARNING" || status === "REINFORCING") {
     return "lc-status-pending";
   }
 
-  return "lc-status-ac";
+  if (status === "MASTERED") {
+    return "lc-status-ac";
+  }
+
+  return "lc-status-fail";
 }
 
-export default async function ProblemsPage() {
-  const { items: problems, error } = await getProblems();
+function dueModeLabel(mode: "core" | "acm"): string {
+  return mode === "core" ? "核心" : "ACM";
+}
+
+function reviewSignal(summary: ProblemMasterySummary): string {
+  if (summary.dueModes.length > 0 && summary.overdueDays !== null) {
+    const modes = summary.dueModes.map((mode) => dueModeLabel(mode)).join("/");
+    if (summary.overdueDays <= 0) {
+      return `今天复习：${modes}`;
+    }
+    return `已逾期 ${summary.overdueDays} 天：${modes}`;
+  }
+
+  if (summary.nextReviewAt) {
+    const nextTs = Date.parse(summary.nextReviewAt);
+    if (Number.isFinite(nextTs)) {
+      const diffDays = Math.ceil((nextTs - Date.now()) / (24 * 60 * 60 * 1000));
+      if (diffDays <= 0) {
+        return "今天复习";
+      }
+      return `${diffDays} 天后复习`;
+    }
+  }
+
+  if (summary.overallStatus === "UNTOUCHED") {
+    return "先完成首题";
+  }
+
+  return `近期连 AC：${summary.consecutiveAc}`;
+}
+
+export default async function ProblemsPage({ searchParams }: Props) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const activeQuery = normalizeSearchQuery(resolvedSearchParams?.q);
+  const { items: problems, error } = await getProblems(activeQuery);
   const groupedProblems = groupAndSortProblems(problems);
 
   return (
-    <section className="space-y-5">
-      <div>
+    <section className="lc-page-wide lc-page-section">
+      <div className="lc-page-header">
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--lc-text)]">题库</h1>
         <p className="mt-1 text-sm text-[var(--lc-text-muted)]">按 LeetCode 风格展示题单，点击任意题目进入做题工作区。</p>
       </div>
 
       <div className="lc-card overflow-hidden">
-        <div className="flex items-center justify-between border-b bg-[var(--lc-surface-soft)] px-4 py-2.5">
-          <div className="flex items-center gap-2 text-xs text-[var(--lc-text-muted)]">
-            <span className="lc-badge border bg-[var(--lc-surface)]">{problems.length} 题</span>
-            <span>Hot 100 · 全量题单</span>
+        <div className="flex flex-col gap-3 border-b bg-[var(--lc-surface-soft)] px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--lc-text-muted)]">
+              <span className="lc-badge border bg-[var(--lc-surface)]">{problems.length} 题</span>
+              <span>{activeQuery ? `命中结果 · 关键词「${activeQuery}」` : "Hot 100 · 全量题单"}</span>
+            </div>
+            <div className="text-xs text-[var(--lc-text-muted)]">
+              {activeQuery ? "支持刷新与分享搜索链接" : "桌面端保留列表密度，移动端压缩为信息卡片"}
+            </div>
           </div>
-          <div className="hidden text-xs text-[var(--lc-text-muted)] md:block">按题型分组（组内按难度）</div>
+          <ProblemSearchBox initialQuery={activeQuery ?? ""} />
         </div>
 
-        <div className="grid grid-cols-[106px_minmax(0,1fr)_90px] items-center border-b px-4 py-2 text-xs uppercase tracking-wide text-[var(--lc-text-muted)] md:grid-cols-[160px_minmax(0,1fr)_110px_110px_280px]">
-          <span>状态</span>
-          <span>标题</span>
+        <div className="hidden grid-cols-[minmax(0,1.7fr)_110px_92px_260px] items-center border-b px-4 py-2 text-xs uppercase tracking-wide text-[var(--lc-text-muted)] md:grid">
+          <span>标题与状态</span>
+          <span>复习信号</span>
           <span>难度</span>
-          <span className="hidden md:block">通过率</span>
-          <span className="hidden md:block">知识点</span>
+          <span>知识点</span>
         </div>
 
         <div>
@@ -236,34 +302,60 @@ export default async function ProblemsPage() {
               </div>
               {group.items.map((problem, index) => {
                 const masterySummary = resolveMasterySummary(problem);
+                const problemTitle = resolveProblemTitle(problem);
                 return (
                   <Link
                     key={problem.slug}
                     href={`/problems/${problem.slug}`}
-                    className="grid grid-cols-[106px_minmax(0,1fr)_90px] items-center border-b px-4 py-3 text-sm transition hover:bg-[var(--lc-row-hover)] last:border-b-0 md:grid-cols-[160px_minmax(0,1fr)_110px_110px_280px]"
+                    className="block border-b px-4 py-3 transition hover:bg-[var(--lc-row-hover)] last:border-b-0"
                   >
-                    <span className="inline-flex flex-col items-start gap-1">
-                      <span className={`lc-badge border ${masteryStatusClass(masterySummary.overallStatus)}`}>
-                        {masteryStatusLabel(masterySummary.overallStatus)}
-                      </span>
-                      <span className="hidden text-[11px] text-[var(--lc-text-muted)] md:block">
-                        最近: {masterySummary.latestStatus ?? "-"}
-                      </span>
-                    </span>
-                    <span className="truncate text-[var(--lc-text)]">
-                      {problem.leetcodeId ? `${problem.leetcodeId}. ` : ""}
-                      {resolveProblemTitle(problem)}
-                    </span>
-                    <span className={`font-medium ${difficultyClass(problem.difficulty)}`}>{difficultyLabel(problem.difficulty)}</span>
-                    <span className="hidden text-xs text-[var(--lc-text-muted)] md:block">{acceptanceRate(problem, index)}</span>
-                    <ProblemKnowledgeTags tags={problem.tags} className="hidden md:flex" />
+                    <div className="flex flex-col gap-3 md:grid md:grid-cols-[minmax(0,1.7fr)_110px_92px_260px] md:items-center">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`lc-badge border ${masteryStatusClass(masterySummary.overallStatus)}`}>
+                            {masteryStatusLabel(masterySummary.overallStatus)}
+                          </span>
+                          <span className={`text-sm font-semibold ${difficultyClass(problem.difficulty)} md:hidden`}>
+                            {difficultyLabel(problem.difficulty)}
+                          </span>
+                          <span className="text-xs text-[var(--lc-text-muted)] md:hidden">{acceptanceRate(problem, index)}</span>
+                        </div>
+                        <p className="mt-2 truncate text-sm font-medium text-[var(--lc-text)] sm:text-base">
+                          {problem.leetcodeId ? `${problem.leetcodeId}. ` : ""}
+                          {problemTitle}
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--lc-text-muted)] md:hidden">
+                          <span>{reviewSignal(masterySummary)}</span>
+                          <span>尝试 {masterySummary.totalAttempts}</span>
+                          <span>{problem.tags.slice(0, 2).join(" / ") || "未分类"}</span>
+                        </div>
+                      </div>
+
+                      <div className="hidden text-xs text-[var(--lc-text-muted)] md:block">{reviewSignal(masterySummary)}</div>
+                      <div className={`hidden text-sm font-semibold md:block ${difficultyClass(problem.difficulty)}`}>
+                        {difficultyLabel(problem.difficulty)}
+                      </div>
+                      <div className="hidden items-center justify-between gap-3 md:flex">
+                        <ProblemKnowledgeTags tags={problem.tags} className="min-w-0 flex-1" />
+                        <span className="shrink-0 text-xs text-[var(--lc-text-muted)]">{acceptanceRate(problem, index)}</span>
+                      </div>
+                    </div>
                   </Link>
                 );
               })}
             </div>
           ))}
           {!error && problems.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-[var(--lc-text-muted)]">当前题库为空，请先执行 `npm run db:seed -w @leetcodepro/api`。</p>
+            activeQuery ? (
+              <div className="flex flex-col items-start gap-3 px-4 py-5 text-sm text-[var(--lc-text-muted)]">
+                <p>未找到与 “{activeQuery}” 匹配的题目，请尝试更短关键词或切换题号 / slug / 标签搜索。</p>
+                <Link href="/problems" className="lc-btn-secondary h-8 px-3 text-xs">
+                  清空搜索
+                </Link>
+              </div>
+            ) : (
+              <p className="px-4 py-3 text-sm text-[var(--lc-text-muted)]">当前题库为空，请先执行 `npm run db:seed -w @leetcodepro/api`。</p>
+            )
           ) : null}
         </div>
       </div>

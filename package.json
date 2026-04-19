@@ -15,6 +15,7 @@
     "setup:python": "python3 -m venv .venv && ./.venv/bin/python -m pip install -r services/ai-tutor/requirements.txt",
     "build": "npm run build -w @leetcodepro/web && npm run build -w @leetcodepro/api",
     "check": "npm run check --workspaces",
+    "verify:judge-modes": "node scripts/verify/all-problems-mode-isolation.mjs",
     "e2e:minimal": "node scripts/e2e/minimal-flow.mjs",
     "e2e:stability": "node scripts/e2e/stability-acceptance.mjs",
     "demo:mvp": "node scripts/e2e/mvp-demo.mjs",

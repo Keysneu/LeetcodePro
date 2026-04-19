@@ -21,6 +21,10 @@ type ProblemDetail = {
   outputSpec: string;
   sampleInput: string;
   sampleOutput: string;
+  acmInputSpec: string;
+  acmOutputSpec: string;
+  acmSampleInput: string;
+  acmSampleOutput: string;
 };
 
 type ProblemDetailResponse = {
@@ -75,15 +79,17 @@ export default async function ProblemDetailPage({ params }: Props) {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
 
   return (
-    <ProblemResizableLayout>
-      <ProblemSidePanel apiBaseUrl={apiBaseUrl} problem={{ ...problem, titleZh }} />
+    <section className="lc-workbench-page">
+      <ProblemResizableLayout className="h-full min-h-0">
+        <ProblemSidePanel apiBaseUrl={apiBaseUrl} problem={{ ...problem, titleZh }} />
 
-      <ProblemWorkspace
-        apiBaseUrl={apiBaseUrl}
-        problemSlug={problem.slug}
-        modeSupport={problem.modeSupport}
-        initialCoreCodes={initialCoreCodes}
-      />
-    </ProblemResizableLayout>
+        <ProblemWorkspace
+          apiBaseUrl={apiBaseUrl}
+          problemSlug={problem.slug}
+          modeSupport={problem.modeSupport}
+          initialCoreCodes={initialCoreCodes}
+        />
+      </ProblemResizableLayout>
+    </section>
   );
 }

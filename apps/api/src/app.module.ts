@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AiConfigsController } from "./ai-configs.controller";
 import { AiController } from "./ai.controller";
 import { AdminProblemsController } from "./admin-problems.controller";
 import { HealthController } from "./health.controller";
@@ -13,6 +14,7 @@ import { SubmissionsController } from "./submissions.controller";
     HealthController,
     ProblemsController,
     SubmissionsController,
+    AiConfigsController,
     AiController,
     NotesController,
     AdminProblemsController,

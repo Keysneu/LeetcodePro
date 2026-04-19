@@ -23,6 +23,39 @@ export type ProgressOverviewResponse = {
     totalAcSubmissions90d: number;
     activeDays90d: number;
   };
+  mastery: {
+    statusCounts: {
+      UNTOUCHED: number;
+      LEARNING: number;
+      REINFORCING: number;
+      MASTERED: number;
+      REVIEW_DUE: number;
+    };
+    masteredProblems: number;
+    dueReviewProblems: number;
+    bothModesMasteredProblems: number;
+    modeCompletion: {
+      core: {
+        supportedProblems: number;
+        masteredProblems: number;
+      };
+      acm: {
+        supportedProblems: number;
+        masteredProblems: number;
+      };
+    };
+    dueReviewItems: Array<{
+      problemId: string;
+      problemSlug: string;
+      problemTitle: string;
+      leetcodeId: number | null;
+      dueModes: Array<"core" | "acm">;
+      nextReviewAt: string | null;
+      overdueDays: number;
+      overallStatus: "UNTOUCHED" | "LEARNING" | "REINFORCING" | "MASTERED" | "REVIEW_DUE";
+    }>;
+    note: string;
+  };
 };
 
 function parseErrorMessage(payload: unknown): string {

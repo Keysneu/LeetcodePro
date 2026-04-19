@@ -81,16 +81,16 @@ export default async function AdminProblemsPage({ searchParams }: Props) {
   }
 
   return (
-    <section className="space-y-4">
-      <div>
+    <section className="lc-page-wide lc-page-section">
+      <div className="lc-page-header">
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--lc-text)]">后台 · 判题数据看板</h1>
         <p className="mt-1 text-sm text-[var(--lc-text-muted)]">
           查看每道题在判题链路中实际使用的测试数据（公开/隐藏用例、权重、输入输出样例）。
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(320px,32%)_1fr] 2xl:grid-cols-[minmax(340px,28%)_1fr]">
-        <div className="lc-card overflow-hidden">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(300px,360px)_minmax(0,1fr)]">
+        <div className="lc-card overflow-hidden xl:sticky xl:top-[calc(var(--lc-nav-height)+1rem)]">
           <div className="lc-card-header bg-[var(--lc-surface-soft)]">
             <span>题目列表</span>
             <span className="text-xs text-[var(--lc-text-muted)]">{problemList.length} 题</span>
@@ -98,7 +98,7 @@ export default async function AdminProblemsPage({ searchParams }: Props) {
           {listError ? (
             <div className="px-4 py-3 text-sm text-[var(--lc-danger)]">{listError}</div>
           ) : (
-            <div className="max-h-[68vh] overflow-auto">
+            <div className="max-h-[min(70vh,52rem)] overflow-auto">
               {problemList.map((problem) => {
                 const isActive = activeSlug === problem.slug;
 
@@ -151,7 +151,7 @@ export default async function AdminProblemsPage({ searchParams }: Props) {
           ) : null}
 
           {judgeData ? (
-            <div className="space-y-4 px-4 py-4">
+            <div className="space-y-4 px-4 py-4 sm:px-5">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="text-lg font-semibold text-[var(--lc-text)]">
@@ -179,6 +179,22 @@ export default async function AdminProblemsPage({ searchParams }: Props) {
                 <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3">
                   <p className="text-xs text-[var(--lc-text-muted)]">输出规范</p>
                   <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{judgeData.outputSpec}</p>
+                </div>
+                <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3">
+                  <p className="text-xs text-[var(--lc-text-muted)]">ACM 输入规范</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{judgeData.acmInputSpec || "(无)"}</p>
+                </div>
+                <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3">
+                  <p className="text-xs text-[var(--lc-text-muted)]">ACM 输出规范</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{judgeData.acmOutputSpec || "(无)"}</p>
+                </div>
+                <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3">
+                  <p className="text-xs text-[var(--lc-text-muted)]">ACM 示例输入</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{judgeData.acmSampleInput || "(无)"}</p>
+                </div>
+                <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3">
+                  <p className="text-xs text-[var(--lc-text-muted)]">ACM 示例输出</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--lc-text)]">{judgeData.acmSampleOutput || "(无)"}</p>
                 </div>
               </div>
 

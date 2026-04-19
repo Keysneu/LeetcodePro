@@ -1,6 +1,6 @@
 # LeetCodePro MVP 开发 ToDo
 
-更新时间：2026-04-14（Asia/Shanghai）
+更新时间：2026-04-19（Asia/Shanghai）
 
 状态约定：
 - `[ ]` 未开始
@@ -25,8 +25,15 @@
 - [x] 后端核心 API（题目、提交、结果查询、后台判题数据）
 - [x] 判题链路（入队、执行、回写）
 - [x] AI 找 Bug 链路（基于提交结果的诊断）
+- [x] AI RAG 栈集成（RAG 方法论 + LlamaIndex 知识切分检索 + LangChain 提示词编排）
 - [x] 进度页可视化（打卡热力图 + 能力雷达图）
-- [x] 题目掌握度可视化（题库汇总状态 + 题目页 4 轨道细分）
+- [x] 题目掌握度可视化重构（迁移进度页 + 遗忘曲线 + 仅 C++ 计入口径）
+- [x] 做题页展示重构（左右等高壳层 + 内部滚动 + 运行分析自适应折叠）
+- [x] ACM 全量适配（Hot100 元数据驱动 stdin 转换 + 无序多解语义归一 + 模式化题面规范）
+- [x] ACM 字段迁移兼容兜底（数据库未执行 009 时 API/seed 自动降级，不再因缺列报错）
+- [x] 前端编辑器可写性修复（Monaco 强制非只读 + `modeSupport` 脏值兼容，解决代码区无法输入）
+- [x] 前端编辑器可见性修复（桌面端代码区改为 `flex` 自适应高度，修复“编辑器被顶上去不可见”）
+- [x] AI 前端展示重构（真实流式渲染 + `thinking/正文` 分流 + thinking 折叠/放大）
 - [x] 端到端联调与验收
 
 ## 3. P0 任务清单（按执行顺序）
@@ -63,6 +70,8 @@
 - [x] 页面去调试信息：移除“控制台”占位与 `Submission ID/实际 Provider/来源/会话` 展示
 - [x] 前端空间自适应优化：全站流式扩展（去除 `1400px` 上限）+ 做题页可拖拽分栏（默认 40/60，支持持久化）
 - [x] 做题页纵向可拖拽比例扩展：代码框/运行分析（默认 65/35）+ 题解笔记/AI题解（默认 50/50），支持持久化与双击复位
+- [x] ACM 模式编辑器升级：切换 ACM 自动加载 C++/Python 起步模板（不再空白）
+- [x] 左侧题面说明按编辑模式切换：`core/acm` 分别展示对应输入输出与示例
 
 验收标准：
 - [x] 用户可完成“选题-写码-提交-看到判题状态/结果”
@@ -78,6 +87,8 @@
 - [x] 支持 C++/Python 两种语言最小判题能力（当前为真实编译执行最小版）
 - [x] 支持核心模式与 ACM 模式的统一结果返回
 - [x] 完成 Hot100 全题核心判题适配（解法题 + 设计题，C++/Python）
+- [x] 完成 Hot100 全题 ACM stdin 适配（按题目参数类型转换 `key=value` 样例）
+- [x] ACM 判题比较升级为语义归一（`3sum/group-anagrams` 等无序输出不再误判）
 
 ### P0-5 AI 找 Bug 链路
 - [x] 前端“AI 找 Bug”入口
@@ -123,7 +134,101 @@
 - [x] API 单元测试补齐：热力图计数、雷达分母分子、90天补齐、时区跨天分桶
 - [x] README / TECH_DESIGN / ToDo 同步更新验证说明与里程碑状态
 
+### P2-2 掌握度重构（迁移进度页 + 遗忘曲线）
+- [x] 掌握度状态枚举升级：`UNTOUCHED/LEARNING/REINFORCING/MASTERED/REVIEW_DUE`
+- [x] 掌握度算法改为“近 7 天连续 2 次 AC + 1/3/7/14/30 天复习间隔”
+- [x] 掌握度仅统计 C++，保留 core/acm 双模式轨道（`core-cpp/acm-cpp`）
+- [x] `/api/progress/overview` 扩展 mastery 聚合块（状态分布、双模式完成度、待复习 Top10）
+- [x] 题目页“运行与分析”移除掌握度卡片，题库页状态改为复习信号
+- [x] 单测补齐并通过：`mastery-metrics`、`progress-metrics`
+- [x] README / TECH_DESIGN / ToDo 同步更新
+
 ## 4. 本周开发记录（Progress Log）
+
+### 2026-04-19
+- [x] 抽离 `apps/web/lib/ai-stream.ts`：统一 SSE 边界解析与流式文本批量刷新，避免 `AI题解/AI判题` 两条链路重复维护
+- [x] 新增 `apps/web/components/ai-stream-panel.tsx`：统一 AI 双流展示卡片，移除头像徽标，拆分 `thinking` 与 `正文回答`
+- [x] 重构 `apps/web/components/problem-side-panel.tsx`：`AI题解/AI判题` 改为真正按帧流式渲染，`thinking` 支持 `展开/收起/放大/标准视图`
+- [x] 新增 `apps/web/lib/ai-content-split.ts`：当前端只拿到混合文本时，自动识别 `<think>` 和 `Thought ...` 结构并拆分思考/正文
+- [x] 收敛 AI 页签视觉层级：移除重复说明，卡片头改为 `Leet` 品牌行，正文首段字号与行距提升，`thinking` 胶囊更贴近参考图
+- [x] 修复 AI 判题正文非实时问题：`ai-tutor -> api -> web` 新增 `response.output_text.replace` 链路，避免安全清洗后只能在最终帧一次性落整段文本
+- [x] 放宽 AI 判题代码展示：允许错误定位用短代码片段，仅继续拦截整题完整实现
+- [x] README / ToDo 同步更新：补充 AI 双流面板的页面验证步骤与预期结果
+
+### 2026-04-18
+- [x] 题库搜索升级：`GET /api/problems` 新增可选 `q` 参数，支持按题号、题名、slug、标签做大小写无关的部分匹配
+- [x] 前端题库页新增 URL 驱动搜索框：输入后更新 `/problems?q=...`，支持清空、刷新回显、无结果空态与命中统计
+- [x] 新增搜索纯逻辑单测：覆盖空查询、空白查询、中文题名、英文 slug、题号、标签与未命中场景
+- [x] 文档同步：`README.md` 新增题库搜索接口验证、页面验证步骤与搜索示例
+- [x] 验证通过：`npm run check -w @leetcodepro/api`、`npm run test -w @leetcodepro/api`、`npm run check -w @leetcodepro/web`
+- [x] 修复 core 判题输入解析：`services/judge-dispatcher/src/core-wrapper.mjs` 支持 Markdown 反引号包裹参数（如 ``nums = `[0,1,0,3,12]` ``），解决 `move-zeroes` `void + 引用参数` 输出误判为空数组
+- [x] 新增判题隔离回归：`services/judge-dispatcher/test/judge-executor.test.mjs` 增加 `move-zeroes` 的 `cpp core` 与 `cpp acm` 用例，确保两种模式互不干扰
+- [x] 修复 core/acm 判题兼容性：补齐 `copy-list-with-random-pointer` 元数据、修正 `merge-two-sorted-lists` 参数别名、修复 `intersection-of-two-linked-lists` 隐藏用例期望值与多题输入格式
+- [x] 修复 core 单参数位置输入：`services/judge-dispatcher/src/core-wrapper.mjs` 支持将无键字面量输入（如 `[1,8,6,2,5,4,8,3,7]`）映射到第一个参数，解决 `container-with-most-water` 被误判 `0` 的问题
+- [x] 新增数据库迁移：`apps/api/scripts/db/sql/migrations/010_fix_core_acm_judge_case_data.sql`（修复历史入库的判题用例脏数据）
+- [x] 新增 Hot100 全量模式巡检脚本：`scripts/verify/all-problems-mode-isolation.mjs`（命令 `npm run verify:judge-modes`）
+- [x] 验证通过：`npm run test -w @leetcodepro/judge-dispatcher`（36/36）
+- [x] 验证通过：`npm run verify:judge-modes`（100 题 core/acm 全量扫描，`issueCount=0`）
+- [x] 修复题目页代码编辑区可见性：`apps/web/components/code-editor.tsx` 将编辑器容器改为 `flex-1 + min-h`，移除固定 `h-full/52vh` 冲突
+- [x] 修复代码编辑区“被顶上去”回归：`apps/web/components/code-editor.tsx` 将模式/语言工具栏与底部状态栏设为 `shrink-0`，Monaco 区域改为自适应填充，避免顶部内容被挤出可视区
+- [x] 修复题目页视口高度：`apps/web/app/problems/[slug]/page.tsx` 高度改为 `lg:h-[calc(100dvh-6.5rem)]`
+- [x] 下调右侧纵向分栏最小高度：`apps/web/components/problem-workspace.tsx` 从 `380/240` 调整为 `320/200`
+- [x] 调回右侧纵向分栏主区最小高度：`apps/web/components/problem-workspace.tsx` 从 `320` 提升回 `380`，避免编辑区可用高度被压扁
+- [x] 优化 ACM 模式代码区展示：移除 `apps/web/components/problem-workspace.tsx` 中代码框内“ACM 输入提示（stdin）”区块，避免占用编辑区空间
+- [x] 最终参数收敛：`apps/web/components/problem-workspace.tsx` 纵向分栏改为默认 `70%`，最小高度 `280/120`（代码区/运行区），优先保证编辑区可见
+- [x] 编辑区空间再释放：`apps/web/components/code-editor.tsx` 移除底部“当前模式/语言”状态栏，Monaco 最小高度提高到 `220/260`
+- [x] 二次重构代码编辑区：`apps/web/components/code-editor.tsx` 改为“工具栏固定 + 编辑区主体”网格结构，避免正文区域被工具条挤压
+- [x] Monaco 稳定性增强：`apps/web/components/code-editor.tsx` 增加容器最小高度与 `ResizeObserver + editor.layout()`，修复仅显示空白/滚动条的问题
+- [x] 分栏缓存隔离：`apps/web/components/problem-workspace.tsx` 纵向分栏 storage key 升级为 `leetcodepro-workspace-vertical-ratio-v2`，并调整默认为 `70%`、最小高度 `280/120`
+- [x] 纵向分栏比例再校准：`apps/web/components/problem-workspace.tsx` 默认比例调到 `78%`，最小高度调到 `360/120`，减少“运行与分析”区域空白
+- [x] 纵向分栏缓存 key 升级：`leetcodepro-workspace-vertical-ratio-v3`，确保新比例立即生效
+- [x] 拖拽条可用性增强：`apps/web/components/problem-resizable-layout.tsx` 纵向分隔条加厚高亮，支持触控/触控板拖拽
+- [x] 纵向分栏可拖动性修复：`apps/web/components/problem-workspace.tsx` 将最小高度调整为 `180/72`，避免小窗口下因最小高度冲突导致“看起来拖不动”
+- [x] 纵向分栏默认再偏代码区：`apps/web/components/problem-workspace.tsx` 默认比例调整为 `86%`，减少“运行与分析”区域大面积空白
+- [x] 纵向分栏缓存 key 再升级：`leetcodepro-workspace-vertical-ratio-v4`，强制应用本轮新参数
+- [x] 文档同步：`README.md` 新增可见性问题说明与验证步骤，`ToDo.md` 同步记录
+- [x] 验证通过：`npm run check -w @leetcodepro/web`、`npm run build -w @leetcodepro/web`
+
+### 2026-04-17
+- [x] `services/ai-tutor/app/rag_stack.py`：新增 RAG 编排层，落地“检索 -> 增强提示 -> 生成”流程
+- [x] 集成 LlamaIndex：使用 `Document + SentenceSplitter` 构建知识切片并做 TopK 检索
+- [x] 集成 LangChain：使用 `ChatPromptTemplate` 统一 system/human 消息编排，保持现有 OpenAI 兼容模型调用路径
+- [x] `services/ai-tutor/app/main.py`：`review/solution` 两条链路接入 RAG 增强消息构建
+- [x] RAG 接入用户笔记 Markdown：API 从 `user_problem_notes.content_md` 注入 `noteContext`，ai-tutor 使用 LlamaIndex 对笔记切分后参与检索
+- [x] `GET /health` 扩展 RAG 运行状态字段：`ragEnabled/langChainReady/llamaIndexReady/ragTopK`
+- [x] `.env.example` 新增 `AI_TUTOR_RAG_ENABLED/AI_TUTOR_RAG_TOP_K`
+- [x] `services/ai-tutor/requirements.txt` 新增 `langchain` 与 `llama-index-core` 依赖，`package.json` check 覆盖 `app/rag_stack.py`
+- [x] 文档同步：README 新增 RAG 接入说明、验证步骤与故障排查
+- [x] 校验通过：`npm run check -w @leetcodepro/ai-tutor`
+
+### 2026-04-15
+- [x] 重构 `apps/api/src/mastery-metrics.ts`：改为遗忘曲线口径，支持 `nextReviewAt/overdueDays/dueModes/consecutiveAc/reviewIntervalDays`
+- [x] 掌握度轨道由 4 条收敛为 2 条（`core-cpp/acm-cpp`），并过滤 Python 对掌握度的影响
+- [x] 扩展 `GET /api/progress/overview`：新增 `mastery` 聚合块（状态分布、模式完成度、待复习题目 Top10）
+- [x] 前端 `/progress` 新增掌握度总览卡与待复习题目列表，显式提示“掌握度仅统计 C++ 提交”
+- [x] 前端题目页工作区移除掌握度卡片，题库页状态文案改为复习信号
+- [x] 新增/重写单测：`apps/api/src/mastery-metrics.test.ts`、`apps/api/src/progress-metrics.test.ts`
+- [x] 验证通过：`npm run test -w @leetcodepro/api`、`npm run check -w @leetcodepro/api`、`npm run check -w @leetcodepro/web`
+- [x] 做题页桌面端分栏重构：左右改为等高壳层 + 各自内部滚动，切换“描述/提交记录/题解”不再导致高度突变
+- [x] 右侧“运行与分析”升级：默认分栏比例调整为 `58/42`，判题结果与 AI 区支持折叠/展开并持久化
+- [x] 左侧 tab 内容滚动口径统一：移除 `max-h`/`vh` 硬编码，题解 tab 维持纵向可拖拽分栏
+- [x] 做题页二次修复：左侧“提交记录/题解”隐藏题目徽标行（仅描述页展示），减少重复信息
+- [x] 做题页二次修复：右侧“运行与分析”改为统一内部滚动容器，拖拽低高度后 AI 区不再穿模越界
+- [x] 做题页三次重构：左侧页签扩展为 `描述/提交记录/笔记题解/AI题解/AI判题`，并将 AI 判题从右侧迁移到左侧独立页
+- [x] 做题页三次重构：右侧“运行与分析”收敛为提交与判题结果；左侧非描述页签隐藏题目标题与徽标
+- [x] 做题页三次重构：新增 submission sync 前端事件，打通“右侧提交/刷新/回放 -> 左侧 AI判题”上下文同步
+- [x] 做题页三次重构：`AI题解` 与 `AI判题` 模型选择器改为独立持久化，互不覆盖
+- [x] 做题页四次优化：左侧 `AI题解/AI判题` 移除调试元信息展示（模型/来源/服务返回模型/会话/当前提交）
+- [x] 做题页四次优化：右侧“判题结果”改为横向紧凑统计条（状态/运行时间/内存/通过数）
+- [x] 本轮前端校验通过：`npm run check -w @leetcodepro/web`
+- [x] 新增数据库迁移 `008_add_user_ai_configs.sql`：落地 `user_ai_configs` / `user_ai_preferences` 两张表
+- [x] 新增 API 配置中心：`GET/POST/PATCH/DELETE /api/ai/configs` + `PUT /api/ai/configs/defaults`
+- [x] 新增 API Key 加密存储能力：`apps/api/src/ai-config-crypto.ts`（AES-256-GCM）并补齐单测
+- [x] AI 请求链路升级：`aiConfigId` 优先级生效（`aiConfigId > 默认配置 > provider`），缺配置时显式报错
+- [x] AI Tutor 支持 `runtimeConfig` 透传（OpenAI 兼容 Base URL / API Key / Model），自定义配置失败不回退模板
+- [x] 首页新增“我的 AI 配置（OpenAI 兼容）”卡片：支持 CRUD、默认项设置、密钥掩码展示
+- [x] 做题页 `AI题解/AI判题` 选择器升级：支持用户配置下拉 + 系统 provider 兼容项，且两者独立持久化
+- [x] 本轮校验通过：`npm run check -w @leetcodepro/api`、`npm run test -w @leetcodepro/api`、`npm run check -w @leetcodepro/web`、`npm run check -w @leetcodepro/ai-tutor`
 
 ### 2026-04-14
 - [x] 完成 `GET /api/progress/overview` 聚合接口，支持 `timezone` 参数校验与 90 天窗口统计
@@ -245,7 +350,7 @@
 - [x] 修复大文件上传报错：API `json/urlencoded` body limit 提升至 `4mb`（解决 `PayloadTooLargeError`）
 - [x] 修复缺表报错：执行 `003_add_user_notes.sql` 迁移并在 notes 接口增加缺迁移友好提示（`relation "user_notes" does not exist`）
 - [x] 题解页“我的题解笔记”支持 Markdown 渲染（标题/列表/代码块/表格）
-- [x] 核心代码模式对齐 LeetCode：C++ 默认 `class Solution` 模板（无头文件），并调整编辑器切换为“`ACM` 自动清空、切回 `core` 恢复核心代码”
+- [x] 核心代码模式对齐 LeetCode：C++ 默认 `class Solution` 模板（无头文件），并调整编辑器切换为“`ACM` 自动加载模板、切回 `core` 恢复核心代码”
 - [x] 题库数据完整化：新增 Hot100 全量 100 题 seed（含公开/隐藏样例），API/前端按 `leetcode_id` 展示 `题号.题名`，并增强笔记匹配对“题号+标题”格式的识别
 - [x] 修复 `db:seed` 启动报错：`seed.ts` 改为 `import * as path from "node:path"`，兼容 `ts-node + commonjs`，恢复 Hot100 种子可执行性
 - [x] 修复 `db:seed` 外键冲突：替换用例前先清理该题关联的 `submission_case_results`，避免 `submission_case_results_case_id_fkey (23503)` 阻塞
@@ -265,6 +370,17 @@
 - [x] 顶部导航新增“后台”入口，并保持 LeetCodePro 视觉风格一致
 - [x] 新增鉴权单元测试：`apps/api/src/admin-auth.test.ts`
 - [x] README 与 `.env.example` 同步更新后台验证步骤与 `ADMIN_API_KEY` 配置
+
+### 2026-04-19
+- [x] 修复 AI 判题失败样例透传：`apps/api/src/ai.controller.ts` / `services/ai-tutor/app/main.py` 新增 `failureCase` 结构（输入/你的输出/期望输出/stderr/是否隐藏），AI 与 fallback 诊断不再只依赖泛化 `errorMessage`
+- [x] 修复 `minimum-window-substring` 类 WA 套话：fallback 诊断优先引用结构化失败样例，并对最小覆盖子串补充“窗口收缩/最优答案更新时机”专项提示
+- [x] 优化 AI 判题 / AI 题解 等待体验：AI Tutor SSE 新增 `phase` 事件，前端展示“准备上下文 / 检索证据 / 请求模型 / 整理结果”阶段与等待时长
+- [x] 修复 AI 题解流式代理稳健性：`apps/api/src/ai.controller.ts` 的 `solution/stream` 改为统一边界解析并透传 `phase` 事件，减少尾包丢失
+- [x] 按 OpenAI 风格重构 AI 流式协议：`services/ai-tutor/app/main.py` 优先走 `/responses` 真流式，前端支持 `response.output_text.delta` / `response.reasoning_summary_text.delta` / `response.completed`
+- [x] 明确思维展示边界：遵循 OpenAI 官方口径，不展示原始 CoT，仅展示 `reasoning summary`；AI 判题保留苏格拉底式 guardrail
+- [x] 补齐 AI 前端交互细节：`apps/web/components/problem-side-panel.tsx` 为 `AI题解/AI判题` 新增 `thinking` 折叠/展开，并对流式 Markdown 做未闭合代码块补全渲染，避免正文等到结尾才整体显示
+- [x] 优化 AI 回答视觉：参考聊天助手 `ChatBox` 风格，将 `AI题解/AI判题` 重构为统一助手卡片，补齐 AI 徽标、状态标签、thinking 折叠面板与正文气泡样式
+- [x] 联调验收通过：`npm run check -w @leetcodepro/api`、`npm run check -w @leetcodepro/web`、`npm run check -w @leetcodepro/ai-tutor`
 
 ## 5. 当前阻塞项
 

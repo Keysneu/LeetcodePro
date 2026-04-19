@@ -4,11 +4,19 @@ import { assertValidIanaTimeZone, buildProgressOverview } from "./progress-metri
 
 type ProblemRow = {
   id: string;
+  slug: string;
+  title: string;
+  leetcodeId: number | null;
   tags: string[];
+  modeSupport: "CORE" | "ACM" | "BOTH";
 };
 
-type AcSubmissionRow = {
+type SubmissionRow = {
+  id: string;
   problemId: string;
+  mode: "core" | "acm";
+  language: "cpp" | "python";
+  status: "QUEUED" | "RUNNING" | "AC" | "WA" | "TLE" | "RE" | "CE";
   createdAt: string;
 };
 
@@ -35,23 +43,30 @@ export class ProgressController {
 
     const userId = await this.getOrCreateDemoUserId();
 
-    const [problemsResult, acSubmissionsResult] = await Promise.all([
+    const [problemsResult, submissionsResult] = await Promise.all([
       query<ProblemRow>(
         `
           SELECT
             id,
-            tags
+            slug,
+            title,
+            leetcode_id AS "leetcodeId",
+            tags,
+            mode_support AS "modeSupport"
           FROM problems;
         `
       ),
-      query<AcSubmissionRow>(
+      query<SubmissionRow>(
         `
           SELECT
+            id,
             problem_id AS "problemId",
+            mode,
+            language,
+            status,
             created_at::text AS "createdAt"
           FROM submissions
-          WHERE user_id = $1
-            AND status = 'AC';
+          WHERE user_id = $1;
         `,
         [userId]
       )
@@ -59,7 +74,7 @@ export class ProgressController {
 
     return buildProgressOverview({
       problems: problemsResult.rows,
-      acSubmissions: acSubmissionsResult.rows,
+      submissions: submissionsResult.rows,
       timeZone: resolvedTimeZone
     });
   }

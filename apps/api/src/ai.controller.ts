@@ -1,5 +1,6 @@
-import { BadGatewayException, Body, Controller, Post, Res } from "@nestjs/common";
+import { BadGatewayException, BadRequestException, Body, Controller, Post, Res } from "@nestjs/common";
 import { AiProvider, normalizeAiProvider } from "./ai-provider";
+import { getOrCreateDemoUserId, resolveAiRuntimeConfigForRequest, type RuntimeAiConfig } from "./ai-config-store";
 import { query } from "./db";
 
 type ReviewBody = {
@@ -7,6 +8,8 @@ type ReviewBody = {
   submissionId?: string;
   sessionId?: string;
   provider?: string;
+  aiConfigId?: string;
+  noteContext?: string;
   language?: "cpp" | "python";
   mode?: "core" | "acm";
   runtimeMs?: number | null;
@@ -14,6 +17,7 @@ type ReviewBody = {
   passedCount?: number | null;
   totalCount?: number | null;
   failureSignals?: ReviewFailureSignal[];
+  failureCase?: ReviewFailureCase | null;
   code?: string;
   status?: string;
   errorMessage?: string | null;
@@ -30,6 +34,8 @@ type SolutionBody = {
   sampleOutput?: string;
   sessionId?: string;
   provider?: string;
+  aiConfigId?: string;
+  noteContext?: string;
 };
 
 type AiTutorResponse = {
@@ -53,8 +59,13 @@ type ReviewFailureSignal = {
   signal: string;
 };
 
-type UserRow = {
-  id: string;
+type ReviewFailureCase = {
+  status: string;
+  isHidden: boolean;
+  inputData: string;
+  actualOutput: string | null;
+  expectedOutput: string;
+  stderr: string | null;
 };
 
 type IdRow = {
@@ -83,6 +94,21 @@ type SubmissionFailureSignalRow = {
   isHidden: boolean;
 };
 
+type SubmissionFailureCaseRow = {
+  status: string;
+  isHidden: boolean;
+  inputData: string;
+  actualOutput: string | null;
+  expectedOutput: string;
+  stderr: string | null;
+};
+
+type ProblemNoteContextRow = {
+  contentMd: string;
+  matchedHeading: string;
+  sourceFilename: string;
+};
+
 type SseFrame = {
   event: string;
   data: string;
@@ -90,7 +116,14 @@ type SseFrame = {
 
 type ParsedSsePayload = Record<string, unknown> | string;
 
-const DEMO_USER_EMAIL = process.env.DEMO_USER_EMAIL ?? "demo@leetcodepro.local";
+type AiTutorReviewBody = ReviewBody & {
+  runtimeConfig?: RuntimeAiConfig;
+};
+
+type AiTutorSolutionBody = SolutionBody & {
+  runtimeConfig?: RuntimeAiConfig;
+};
+
 const AI_TUTOR_TIMEOUT_MS = Number(process.env.AI_TUTOR_TIMEOUT_MS ?? 12000);
 const AI_TUTOR_MINIMAX_TIMEOUT_MS = Number(process.env.AI_TUTOR_MINIMAX_TIMEOUT_MS ?? 90000);
 const AI_TUTOR_REVIEW_TIMEOUT_MS = Number(process.env.AI_TUTOR_REVIEW_TIMEOUT_MS ?? 30000);
@@ -278,6 +311,45 @@ function normalizeSolutionErrorMessage(provider: AiProvider | null, rawMessage: 
   return fallback;
 }
 
+function normalizeCustomConfigErrorMessage(rawMessage: string | null): string {
+  const fallback = "当前 AI 配置调用失败，请检查首页中的 Base URL / API Key / Model 后重试。";
+  const message = (rawMessage ?? "").trim();
+  if (message.length === 0) {
+    return fallback;
+  }
+
+  if (message.includes("请先在首页配置")) {
+    return message;
+  }
+
+  const normalized = message.toLowerCase();
+  const timeoutSignals = ["aborterror", "timeout", "timed out", "deadline exceeded"];
+  if (timeoutSignals.some((item) => normalized.includes(item))) {
+    return "当前 AI 配置请求超时，请检查服务可达性或稍后重试。";
+  }
+
+  return fallback;
+}
+
+function inferActualOutputFromStderr(stderr: string | null): string | null {
+  if (!stderr) {
+    return null;
+  }
+
+  const trimmed = stderr.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  const matched = trimmed.match(/^Expected\s+([\s\S]*?),\s+got\s+([\s\S]*)$/);
+  if (!matched) {
+    return null;
+  }
+
+  const got = matched[2]?.trim() ?? "";
+  return got.length > 0 ? got : null;
+}
+
 @Controller("ai")
 export class AiController {
   @Post("bug-find")
@@ -288,10 +360,27 @@ export class AiController {
   @Post("review")
   async review(@Body() body: ReviewBody) {
     const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? "http://localhost:8000";
+    const userId = await getOrCreateDemoUserId();
+    const resolvedConfig = await resolveAiRuntimeConfigForRequest(userId, "review", body.aiConfigId);
+    if (resolvedConfig.kind === "invalid") {
+      throw new BadRequestException(resolvedConfig.message);
+    }
+
     let provider: AiProvider | null = normalizeAiProvider(body.provider);
+    let runtimeConfig: RuntimeAiConfig | null = null;
+    if (resolvedConfig.kind === "configured") {
+      runtimeConfig = resolvedConfig.runtimeConfig;
+      provider = null;
+    } else if (!provider) {
+      throw new BadRequestException("未找到可用 AI 配置，请先在首页配置并选择 AI。");
+    }
+
     const sessionId = await this.ensureReviewSession(body);
-    const rawTutorRequestBody = await this.buildAiTutorReviewPayload(body, sessionId, provider);
+    const rawTutorRequestBody = await this.buildAiTutorReviewPayload(body, sessionId, provider, userId);
     const tutorRequestBody = this.sanitizeReviewBody(rawTutorRequestBody);
+    const aiTutorRequestBody: AiTutorReviewBody = runtimeConfig
+      ? { ...tutorRequestBody, runtimeConfig }
+      : tutorRequestBody;
     const fallbackMessage = this.buildFallbackGuidance(tutorRequestBody);
     await this.appendAiMessage(sessionId, "user", this.buildUserReviewContext(tutorRequestBody));
 
@@ -307,7 +396,7 @@ export class AiController {
         headers: {
           "content-type": "application/json"
         },
-        body: JSON.stringify(tutorRequestBody),
+        body: JSON.stringify(aiTutorRequestBody),
         signal: controller.signal
       });
 
@@ -318,8 +407,18 @@ export class AiController {
         guidance = json.guidance ?? fallbackMessage;
         source = json.source ?? "ai-tutor";
         provider = normalizeAiProvider(json.provider) ?? provider;
+      } else if (runtimeConfig) {
+        const upstreamMessage = await readUpstreamErrorMessage(response, "runtime config request failed");
+        throw new BadGatewayException(normalizeCustomConfigErrorMessage(upstreamMessage));
       }
-    } catch {
+    } catch (error) {
+      if (runtimeConfig) {
+        if (error instanceof BadGatewayException) {
+          throw error;
+        }
+        const message = error instanceof Error ? `${error.name}: ${error.message}` : null;
+        throw new BadGatewayException(normalizeCustomConfigErrorMessage(message));
+      }
       // Fallback below.
     }
 
@@ -341,10 +440,46 @@ export class AiController {
   @Post("review/stream")
   async reviewStream(@Body() body: ReviewBody, @Res() res: SseResponse): Promise<void> {
     const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? "http://localhost:8000";
+    const userId = await getOrCreateDemoUserId();
+    const resolvedConfig = await resolveAiRuntimeConfigForRequest(userId, "review", body.aiConfigId);
+    if (resolvedConfig.kind === "invalid") {
+      res.status(200);
+      res.setHeader("content-type", "text/event-stream; charset=utf-8");
+      res.setHeader("cache-control", "no-cache, no-transform");
+      res.setHeader("connection", "keep-alive");
+      res.setHeader("x-accel-buffering", "no");
+      res.flushHeaders();
+      writeSseEvent(res, "error", { message: resolvedConfig.message });
+      writeSseEvent(res, "done", { error: resolvedConfig.message });
+      res.end();
+      return;
+    }
+
     let provider: AiProvider | null = normalizeAiProvider(body.provider);
+    let runtimeConfig: RuntimeAiConfig | null = null;
+    if (resolvedConfig.kind === "configured") {
+      runtimeConfig = resolvedConfig.runtimeConfig;
+      provider = null;
+    } else if (!provider) {
+      const message = "未找到可用 AI 配置，请先在首页配置并选择 AI。";
+      res.status(200);
+      res.setHeader("content-type", "text/event-stream; charset=utf-8");
+      res.setHeader("cache-control", "no-cache, no-transform");
+      res.setHeader("connection", "keep-alive");
+      res.setHeader("x-accel-buffering", "no");
+      res.flushHeaders();
+      writeSseEvent(res, "error", { message });
+      writeSseEvent(res, "done", { error: message });
+      res.end();
+      return;
+    }
+
     const sessionId = await this.ensureReviewSession(body);
-    const rawTutorRequestBody = await this.buildAiTutorReviewPayload(body, sessionId, provider);
+    const rawTutorRequestBody = await this.buildAiTutorReviewPayload(body, sessionId, provider, userId);
     const tutorRequestBody = this.sanitizeReviewBody(rawTutorRequestBody);
+    const aiTutorRequestBody: AiTutorReviewBody = runtimeConfig
+      ? { ...tutorRequestBody, runtimeConfig }
+      : tutorRequestBody;
     const fallbackMessage = this.buildFallbackGuidance(tutorRequestBody);
     await this.appendAiMessage(sessionId, "user", this.buildUserReviewContext(tutorRequestBody));
 
@@ -360,9 +495,16 @@ export class AiController {
       source: "api-proxy",
       provider
     });
+    writeSseEvent(res, "phase", {
+      sessionId: sessionId ?? "",
+      stage: "prepare",
+      message: "已发送 AI 判题请求，正在准备上下文。"
+    });
 
     let source = "ai-tutor";
     let guidance = "";
+    let reasoningSummary = "";
+    let streamError = "";
     let doneSent = false;
 
     const controller = new AbortController();
@@ -378,11 +520,15 @@ export class AiController {
         headers: {
           "content-type": "application/json"
         },
-        body: JSON.stringify(tutorRequestBody),
+        body: JSON.stringify(aiTutorRequestBody),
         signal: controller.signal
       });
 
       if (!upstream.ok || !upstream.body) {
+        if (runtimeConfig) {
+          const upstreamMessage = await readUpstreamErrorMessage(upstream, "runtime config stream request failed");
+          throw new Error(normalizeCustomConfigErrorMessage(upstreamMessage));
+        }
         throw new Error(`Upstream SSE unavailable: ${upstream.status}`);
       }
 
@@ -403,6 +549,66 @@ export class AiController {
           return;
         }
 
+        if (frame.event === "phase") {
+          writeSseEvent(res, "phase", {
+            sessionId: sessionId ?? "",
+            ...(isRecord(payload) ? payload : { message: typeof payload === "string" ? payload : "正在处理中。" })
+          });
+          return;
+        }
+
+        if (frame.event === "response.created" || frame.event === "response.in_progress") {
+          writeSseEvent(res, frame.event, {
+            sessionId: sessionId ?? "",
+            source,
+            provider
+          });
+          return;
+        }
+
+        if (frame.event === "response.reasoning_summary_text.delta") {
+          const delta = readStringField(payload, "delta") ?? (typeof payload === "string" ? payload : "");
+          if (delta.length > 0) {
+            reasoningSummary += delta;
+            writeSseEvent(res, "response.reasoning_summary_text.delta", {
+              sessionId: sessionId ?? "",
+              source,
+              provider,
+              delta
+            });
+          }
+          return;
+        }
+
+        if (frame.event === "response.output_text.delta") {
+          const delta = readStringField(payload, "delta") ?? (typeof payload === "string" ? payload : "");
+          if (delta.length > 0) {
+            guidance += delta;
+            writeSseEvent(res, "response.output_text.delta", {
+              sessionId: sessionId ?? "",
+              source,
+              provider,
+              delta
+            });
+            writeSseEvent(res, "delta", { delta });
+          }
+          return;
+        }
+
+        if (frame.event === "response.output_text.replace") {
+          const text = readStringField(payload, "text") ?? (typeof payload === "string" ? payload : "");
+          if (text.length > 0) {
+            guidance = text;
+            writeSseEvent(res, "response.output_text.replace", {
+              sessionId: sessionId ?? "",
+              source,
+              provider,
+              text
+            });
+          }
+          return;
+        }
+
         if (frame.event === "delta") {
           const delta = readStringField(payload, "delta") ?? (typeof payload === "string" ? payload : "");
           if (delta.length > 0) {
@@ -412,19 +618,46 @@ export class AiController {
           return;
         }
 
+        if (frame.event === "response.completed") {
+          source = readStringField(payload, "source") ?? source;
+          provider = normalizeAiProvider(readStringField(payload, "provider")) ?? provider;
+          const finalGuidance = readStringField(payload, "guidance");
+          const finalReasoningSummary = readStringField(payload, "reasoningSummary");
+          if (finalGuidance && finalGuidance.length > 0) {
+            guidance = finalGuidance;
+          }
+          if (finalReasoningSummary && finalReasoningSummary.length > 0) {
+            reasoningSummary = finalReasoningSummary;
+          }
+
+          writeSseEvent(res, "response.completed", {
+            sessionId: sessionId ?? "",
+            source,
+            guidance,
+            provider,
+            ...(reasoningSummary ? { reasoningSummary } : {})
+          });
+          return;
+        }
+
         if (frame.event === "done") {
           source = readStringField(payload, "source") ?? source;
           provider = normalizeAiProvider(readStringField(payload, "provider")) ?? provider;
           const finalGuidance = readStringField(payload, "guidance");
+          const finalReasoningSummary = readStringField(payload, "reasoningSummary");
           if (finalGuidance && finalGuidance.length > 0) {
             guidance = finalGuidance;
+          }
+          if (finalReasoningSummary && finalReasoningSummary.length > 0) {
+            reasoningSummary = finalReasoningSummary;
           }
 
           writeSseEvent(res, "done", {
             sessionId: sessionId ?? "",
             source,
             guidance,
-            provider
+            provider,
+            ...(reasoningSummary ? { reasoningSummary } : {})
           });
           doneSent = true;
         }
@@ -465,46 +698,110 @@ export class AiController {
           handleFrame(tailFrame);
         }
       }
-    } catch {
-      source = "api-fallback";
-      guidance = fallbackMessage;
-      writeSseEvent(res, "delta", { delta: guidance });
-      writeSseEvent(res, "done", {
-        sessionId: sessionId ?? "",
-        source,
-        guidance,
-        provider
-      });
-      doneSent = true;
+    } catch (error) {
+      if (runtimeConfig) {
+        source = "api-error";
+        const message = error instanceof Error ? error.message : null;
+        streamError = normalizeCustomConfigErrorMessage(message);
+        writeSseEvent(res, "error", {
+          sessionId: sessionId ?? "",
+          source,
+          provider,
+          message: streamError
+        });
+        writeSseEvent(res, "done", {
+          sessionId: sessionId ?? "",
+          source,
+          guidance,
+          provider,
+          ...(reasoningSummary ? { reasoningSummary } : {}),
+          error: streamError
+        });
+        doneSent = true;
+      } else {
+        source = "api-fallback";
+        guidance = fallbackMessage;
+        reasoningSummary = "";
+        writeSseEvent(res, "delta", { delta: guidance });
+        writeSseEvent(res, "done", {
+          sessionId: sessionId ?? "",
+          source,
+          guidance,
+          provider,
+          ...(reasoningSummary ? { reasoningSummary } : {})
+        });
+        doneSent = true;
+      }
     } finally {
       clearTimeout(timeout);
     }
 
     if (!doneSent) {
-      if (guidance.length === 0) {
-        source = "api-fallback";
-        guidance = fallbackMessage;
-        writeSseEvent(res, "delta", { delta: guidance });
-      }
+      if (runtimeConfig) {
+        if (guidance.length === 0 && streamError.length === 0) {
+          source = "api-error";
+          streamError = normalizeCustomConfigErrorMessage(null);
+          writeSseEvent(res, "error", {
+            sessionId: sessionId ?? "",
+            source,
+            provider,
+            message: streamError
+          });
+        }
+        writeSseEvent(res, "done", {
+          sessionId: sessionId ?? "",
+          source,
+          guidance,
+          provider,
+          ...(reasoningSummary ? { reasoningSummary } : {}),
+          ...(streamError ? { error: streamError } : {})
+        });
+      } else {
+        if (guidance.length === 0) {
+          source = "api-fallback";
+          guidance = fallbackMessage;
+          writeSseEvent(res, "delta", { delta: guidance });
+        }
 
-      writeSseEvent(res, "done", {
-        sessionId: sessionId ?? "",
-        source,
-        guidance,
-        provider
-      });
+        writeSseEvent(res, "done", {
+          sessionId: sessionId ?? "",
+          source,
+          guidance,
+          provider,
+          ...(reasoningSummary ? { reasoningSummary } : {})
+        });
+      }
     }
 
-    await this.appendAiMessage(sessionId, "assistant", guidance, { source, provider });
+    if (guidance.length > 0) {
+      await this.appendAiMessage(sessionId, "assistant", guidance, { source, provider });
+    } else if (streamError.length > 0) {
+      await this.appendAiMessage(sessionId, "assistant", streamError, { source, provider, type: "review-error" });
+    }
     res.end();
   }
 
   @Post("solution")
   async solution(@Body() body: SolutionBody) {
     const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? "http://localhost:8000";
+    const userId = await getOrCreateDemoUserId();
+    const resolvedConfig = await resolveAiRuntimeConfigForRequest(userId, "solution", body.aiConfigId);
+    if (resolvedConfig.kind === "invalid") {
+      throw new BadRequestException(resolvedConfig.message);
+    }
+
     let provider: AiProvider | null = normalizeAiProvider(body.provider);
+    let runtimeConfig: RuntimeAiConfig | null = null;
+    if (resolvedConfig.kind === "configured") {
+      runtimeConfig = resolvedConfig.runtimeConfig;
+      provider = null;
+    } else if (!provider) {
+      throw new BadRequestException("未找到可用 AI 配置，请先在首页配置并选择 AI。");
+    }
+
     const sessionId = await this.ensureSolutionSession(body);
-    await this.appendAiMessage(sessionId, "user", this.buildUserSolutionContext(body));
+    const aiTutorSolutionPayload = await this.buildAiTutorSolutionPayload(body, sessionId, provider, userId);
+    await this.appendAiMessage(sessionId, "user", this.buildUserSolutionContext(aiTutorSolutionPayload));
 
     let editorial = "";
     let source = "ai-tutor";
@@ -519,9 +816,8 @@ export class AiController {
           "content-type": "application/json"
         },
         body: JSON.stringify({
-          ...body,
-          sessionId,
-          ...(provider ? { provider } : {})
+          ...aiTutorSolutionPayload,
+          ...(runtimeConfig ? { runtimeConfig } : {})
         }),
         signal: controller.signal
       });
@@ -531,9 +827,15 @@ export class AiController {
       if (!response.ok) {
         const upstreamMessage = await readUpstreamErrorMessage(
           response,
-          `${provider ?? "AI"} 题解生成失败，请稍后重试。`
+          runtimeConfig
+            ? "当前 AI 配置调用失败，请检查首页中的 Base URL / API Key / Model 后重试。"
+            : `${provider ?? "AI"} 题解生成失败，请稍后重试。`
         );
-        throw new BadGatewayException(normalizeSolutionErrorMessage(provider, upstreamMessage));
+        throw new BadGatewayException(
+          runtimeConfig
+            ? normalizeCustomConfigErrorMessage(upstreamMessage)
+            : normalizeSolutionErrorMessage(provider, upstreamMessage)
+        );
       }
 
       const json = (await response.json()) as AiTutorSolutionResponse;
@@ -549,7 +851,9 @@ export class AiController {
         throw error;
       }
       const message = error instanceof Error ? `${error.name}: ${error.message}` : null;
-      throw new BadGatewayException(normalizeSolutionErrorMessage(provider, message));
+      throw new BadGatewayException(
+        runtimeConfig ? normalizeCustomConfigErrorMessage(message) : normalizeSolutionErrorMessage(provider, message)
+      );
     }
 
     await this.appendAiMessage(sessionId, "assistant", editorial, { source, provider, type: "solution" });
@@ -565,9 +869,43 @@ export class AiController {
   @Post("solution/stream")
   async solutionStream(@Body() body: SolutionBody, @Res() res: SseResponse): Promise<void> {
     const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? "http://localhost:8000";
+    const userId = await getOrCreateDemoUserId();
+    const resolvedConfig = await resolveAiRuntimeConfigForRequest(userId, "solution", body.aiConfigId);
+    if (resolvedConfig.kind === "invalid") {
+      res.status(200);
+      res.setHeader("content-type", "text/event-stream; charset=utf-8");
+      res.setHeader("cache-control", "no-cache, no-transform");
+      res.setHeader("connection", "keep-alive");
+      res.setHeader("x-accel-buffering", "no");
+      res.flushHeaders();
+      writeSseEvent(res, "error", { message: resolvedConfig.message });
+      writeSseEvent(res, "done", { error: resolvedConfig.message });
+      res.end();
+      return;
+    }
+
     let provider: AiProvider | null = normalizeAiProvider(body.provider);
+    let runtimeConfig: RuntimeAiConfig | null = null;
+    if (resolvedConfig.kind === "configured") {
+      runtimeConfig = resolvedConfig.runtimeConfig;
+      provider = null;
+    } else if (!provider) {
+      const message = "未找到可用 AI 配置，请先在首页配置并选择 AI。";
+      res.status(200);
+      res.setHeader("content-type", "text/event-stream; charset=utf-8");
+      res.setHeader("cache-control", "no-cache, no-transform");
+      res.setHeader("connection", "keep-alive");
+      res.setHeader("x-accel-buffering", "no");
+      res.flushHeaders();
+      writeSseEvent(res, "error", { message });
+      writeSseEvent(res, "done", { error: message });
+      res.end();
+      return;
+    }
+
     const sessionId = await this.ensureSolutionSession(body);
-    await this.appendAiMessage(sessionId, "user", this.buildUserSolutionContext(body));
+    const aiTutorSolutionPayload = await this.buildAiTutorSolutionPayload(body, sessionId, provider, userId);
+    await this.appendAiMessage(sessionId, "user", this.buildUserSolutionContext(aiTutorSolutionPayload));
 
     res.status(200);
     res.setHeader("content-type", "text/event-stream; charset=utf-8");
@@ -584,6 +922,7 @@ export class AiController {
 
     let source = "ai-tutor";
     let editorial = "";
+    let reasoningSummary = "";
     let streamError = "";
     let doneSent = false;
 
@@ -601,9 +940,8 @@ export class AiController {
           "content-type": "application/json"
         },
         body: JSON.stringify({
-          ...body,
-          sessionId,
-          ...(provider ? { provider } : {})
+          ...aiTutorSolutionPayload,
+          ...(runtimeConfig ? { runtimeConfig } : {})
         }),
         signal: controller.signal
       });
@@ -611,9 +949,15 @@ export class AiController {
       if (!upstream.ok || !upstream.body) {
         const upstreamMessage = await readUpstreamErrorMessage(
           upstream,
-          `${provider ?? "AI"} 题解生成失败，请稍后重试。`
+          runtimeConfig
+            ? "当前 AI 配置调用失败，请检查首页中的 Base URL / API Key / Model 后重试。"
+            : `${provider ?? "AI"} 题解生成失败，请稍后重试。`
         );
-        throw new Error(normalizeSolutionErrorMessage(provider, upstreamMessage));
+        throw new Error(
+          runtimeConfig
+            ? normalizeCustomConfigErrorMessage(upstreamMessage)
+            : normalizeSolutionErrorMessage(provider, upstreamMessage)
+        );
       }
 
       const reader = upstream.body.getReader();
@@ -629,13 +973,13 @@ export class AiController {
         buffer += decoder.decode(value, { stream: true });
 
         while (true) {
-          const boundary = buffer.indexOf("\n\n");
-          if (boundary < 0) {
+          const boundary = findSseBoundary(buffer);
+          if (!boundary) {
             break;
           }
 
-          const rawFrame = buffer.slice(0, boundary);
-          buffer = buffer.slice(boundary + 2);
+          const rawFrame = buffer.slice(0, boundary.index);
+          buffer = buffer.slice(boundary.index + boundary.separatorLength);
           const frame = parseSseFrame(rawFrame);
 
           if (!frame) {
@@ -652,6 +996,52 @@ export class AiController {
               source,
               provider
             });
+            continue;
+          }
+
+          if (frame.event === "phase") {
+            writeSseEvent(res, "phase", {
+              sessionId: sessionId ?? "",
+              ...(isRecord(payload) ? payload : { message: typeof payload === "string" ? payload : "正在处理中。" })
+            });
+            continue;
+          }
+
+          if (frame.event === "response.created" || frame.event === "response.in_progress") {
+            writeSseEvent(res, frame.event, {
+              sessionId: sessionId ?? "",
+              source,
+              provider
+            });
+            continue;
+          }
+
+          if (frame.event === "response.reasoning_summary_text.delta") {
+            const delta = readStringField(payload, "delta") ?? (typeof payload === "string" ? payload : "");
+            if (delta.length > 0) {
+              reasoningSummary += delta;
+              writeSseEvent(res, "response.reasoning_summary_text.delta", {
+                sessionId: sessionId ?? "",
+                source,
+                provider,
+                delta
+              });
+            }
+            continue;
+          }
+
+          if (frame.event === "response.output_text.delta") {
+            const delta = readStringField(payload, "delta") ?? (typeof payload === "string" ? payload : "");
+            if (delta.length > 0) {
+              editorial += delta;
+              writeSseEvent(res, "response.output_text.delta", {
+                sessionId: sessionId ?? "",
+                source,
+                provider,
+                delta
+              });
+              writeSseEvent(res, "delta", { delta });
+            }
             continue;
           }
 
@@ -681,16 +1071,42 @@ export class AiController {
             continue;
           }
 
+          if (frame.event === "response.completed") {
+            source = readStringField(payload, "source") ?? source;
+            provider = normalizeAiProvider(readStringField(payload, "provider")) ?? provider;
+            const finalEditorial = readStringField(payload, "editorial");
+            const finalReasoningSummary = readStringField(payload, "reasoningSummary");
+            if (finalEditorial && finalEditorial.length > 0) {
+              editorial = finalEditorial;
+            }
+            if (finalReasoningSummary && finalReasoningSummary.length > 0) {
+              reasoningSummary = finalReasoningSummary;
+            }
+
+            writeSseEvent(res, "response.completed", {
+              sessionId: sessionId ?? "",
+              source,
+              editorial,
+              provider,
+              ...(reasoningSummary ? { reasoningSummary } : {})
+            });
+            continue;
+          }
+
           if (frame.event === "done") {
             source = readStringField(payload, "source") ?? source;
             provider = normalizeAiProvider(readStringField(payload, "provider")) ?? provider;
             const finalEditorial = readStringField(payload, "editorial");
             const finalError = readStringField(payload, "error");
+            const finalReasoningSummary = readStringField(payload, "reasoningSummary");
             if (finalEditorial && finalEditorial.length > 0) {
               editorial = finalEditorial;
             }
             if (finalError && finalError.length > 0) {
               streamError = normalizeSolutionErrorMessage(provider, finalError);
+            }
+            if (finalReasoningSummary && finalReasoningSummary.length > 0) {
+              reasoningSummary = finalReasoningSummary;
             }
 
             writeSseEvent(res, "done", {
@@ -698,6 +1114,145 @@ export class AiController {
               source,
               editorial,
               provider,
+              ...(reasoningSummary ? { reasoningSummary } : {}),
+              ...(streamError ? { error: streamError } : {})
+            });
+            doneSent = true;
+          }
+        }
+      }
+
+      buffer += decoder.decode();
+      while (true) {
+        const boundary = findSseBoundary(buffer);
+        if (!boundary) {
+          break;
+        }
+
+        const rawFrame = buffer.slice(0, boundary.index);
+        buffer = buffer.slice(boundary.index + boundary.separatorLength);
+        const frame = parseSseFrame(rawFrame);
+        if (!frame) {
+          continue;
+        }
+
+        const payload = parseSsePayload(frame.data);
+        if (frame.event === "phase") {
+          writeSseEvent(res, "phase", {
+            sessionId: sessionId ?? "",
+            ...(isRecord(payload) ? payload : { message: typeof payload === "string" ? payload : "正在处理中。" })
+          });
+          continue;
+        }
+        if (frame.event === "response.completed") {
+          source = readStringField(payload, "source") ?? source;
+          provider = normalizeAiProvider(readStringField(payload, "provider")) ?? provider;
+          const finalEditorial = readStringField(payload, "editorial");
+          const finalError = readStringField(payload, "error");
+          const finalReasoningSummary = readStringField(payload, "reasoningSummary");
+          if (finalEditorial && finalEditorial.length > 0) {
+            editorial = finalEditorial;
+          }
+          if (finalError && finalError.length > 0) {
+            streamError = normalizeSolutionErrorMessage(provider, finalError);
+          }
+          if (finalReasoningSummary && finalReasoningSummary.length > 0) {
+            reasoningSummary = finalReasoningSummary;
+          }
+
+          writeSseEvent(res, "response.completed", {
+            sessionId: sessionId ?? "",
+            source,
+            editorial,
+            provider,
+            ...(reasoningSummary ? { reasoningSummary } : {})
+          });
+          continue;
+        }
+        if (frame.event === "done") {
+          source = readStringField(payload, "source") ?? source;
+          provider = normalizeAiProvider(readStringField(payload, "provider")) ?? provider;
+          const finalEditorial = readStringField(payload, "editorial");
+          const finalError = readStringField(payload, "error");
+          const finalReasoningSummary = readStringField(payload, "reasoningSummary");
+          if (finalEditorial && finalEditorial.length > 0) {
+            editorial = finalEditorial;
+          }
+          if (finalError && finalError.length > 0) {
+            streamError = normalizeSolutionErrorMessage(provider, finalError);
+          }
+          if (finalReasoningSummary && finalReasoningSummary.length > 0) {
+            reasoningSummary = finalReasoningSummary;
+          }
+
+          writeSseEvent(res, "done", {
+            sessionId: sessionId ?? "",
+            source,
+            editorial,
+            provider,
+            ...(reasoningSummary ? { reasoningSummary } : {}),
+            ...(streamError ? { error: streamError } : {})
+          });
+          doneSent = true;
+        }
+      }
+
+      if (buffer.trim().length > 0) {
+        const tailFrame = parseSseFrame(buffer.trim());
+        if (tailFrame) {
+          const payload = parseSsePayload(tailFrame.data);
+          if (tailFrame.event === "phase") {
+            writeSseEvent(res, "phase", {
+              sessionId: sessionId ?? "",
+              ...(isRecord(payload) ? payload : { message: typeof payload === "string" ? payload : "正在处理中。" })
+            });
+          }
+          if (tailFrame.event === "response.completed") {
+            source = readStringField(payload, "source") ?? source;
+            provider = normalizeAiProvider(readStringField(payload, "provider")) ?? provider;
+            const finalEditorial = readStringField(payload, "editorial");
+            const finalError = readStringField(payload, "error");
+            const finalReasoningSummary = readStringField(payload, "reasoningSummary");
+            if (finalEditorial && finalEditorial.length > 0) {
+              editorial = finalEditorial;
+            }
+            if (finalError && finalError.length > 0) {
+              streamError = normalizeSolutionErrorMessage(provider, finalError);
+            }
+            if (finalReasoningSummary && finalReasoningSummary.length > 0) {
+              reasoningSummary = finalReasoningSummary;
+            }
+
+            writeSseEvent(res, "response.completed", {
+              sessionId: sessionId ?? "",
+              source,
+              editorial,
+              provider,
+              ...(reasoningSummary ? { reasoningSummary } : {})
+            });
+          }
+          if (tailFrame.event === "done") {
+            source = readStringField(payload, "source") ?? source;
+            provider = normalizeAiProvider(readStringField(payload, "provider")) ?? provider;
+            const finalEditorial = readStringField(payload, "editorial");
+            const finalError = readStringField(payload, "error");
+            const finalReasoningSummary = readStringField(payload, "reasoningSummary");
+            if (finalEditorial && finalEditorial.length > 0) {
+              editorial = finalEditorial;
+            }
+            if (finalError && finalError.length > 0) {
+              streamError = normalizeSolutionErrorMessage(provider, finalError);
+            }
+            if (finalReasoningSummary && finalReasoningSummary.length > 0) {
+              reasoningSummary = finalReasoningSummary;
+            }
+
+            writeSseEvent(res, "done", {
+              sessionId: sessionId ?? "",
+              source,
+              editorial,
+              provider,
+              ...(reasoningSummary ? { reasoningSummary } : {}),
               ...(streamError ? { error: streamError } : {})
             });
             doneSent = true;
@@ -707,7 +1262,9 @@ export class AiController {
     } catch (error) {
       source = "api-error";
       const message = error instanceof Error ? `${error.name}: ${error.message}` : null;
-      streamError = normalizeSolutionErrorMessage(provider, message);
+      streamError = runtimeConfig
+        ? normalizeCustomConfigErrorMessage(message)
+        : normalizeSolutionErrorMessage(provider, message);
       writeSseEvent(res, "error", {
         sessionId: sessionId ?? "",
         source,
@@ -719,6 +1276,7 @@ export class AiController {
         source,
         editorial,
         provider,
+        ...(reasoningSummary ? { reasoningSummary } : {}),
         error: streamError
       });
       doneSent = true;
@@ -745,6 +1303,7 @@ export class AiController {
         source,
         editorial,
         provider,
+        ...(reasoningSummary ? { reasoningSummary } : {}),
         ...(streamError ? { error: streamError } : {})
       });
     }
@@ -763,8 +1322,10 @@ export class AiController {
 
   private buildFallbackGuidance(body: ReviewBody): string {
     const safeFailureSignals = this.sanitizeFailureSignals(body.failureSignals);
+    const safeFailureCase = this.sanitizeFailureCase(body.failureCase);
     const safeErrorMessage = this.redactPromptInjection(body.errorMessage ?? "", 240);
     const codeSignals = this.extractCodeSignals(body.code ?? "");
+    const failureCaseFindings = this.extractFailureCaseFindings(body, safeFailureCase);
     const codeFindings = this.extractCodeFindings(body.code ?? "", body.status, safeErrorMessage || body.errorMessage);
     const metricLine = [
       `状态=${body.status ?? "unknown"}`,
@@ -776,7 +1337,9 @@ export class AiController {
     const failureLine = safeFailureSignals.length
       ? safeFailureSignals.map((item) => `${item.status}:${item.signal}`).join(" | ")
       : "暂无逐用例失败信号";
-    const findingsBlock = codeFindings.map((item) => `- ${item}`).join("\n");
+    const failureCaseLine = this.describeFailureCase(safeFailureCase);
+    const findings = [...failureCaseFindings, ...codeFindings].slice(0, 4);
+    const findingsBlock = findings.map((item) => `- ${item}`).join("\n");
     const normalizedStatus = (body.status ?? "").toUpperCase();
 
     if (normalizedStatus === "AC") {
@@ -801,6 +1364,7 @@ export class AiController {
         `- 判题指标：${metricLine}`,
         `- 错误信息：${safeErrorMessage || "none"}`,
         `- 失败信号：${failureLine}`,
+        `- 失败样例：${failureCaseLine}`,
         `- 代码侧信号：${codeSignals.join("；")}`
       ].join("\n");
     }
@@ -819,6 +1383,7 @@ export class AiController {
       `- 判题指标：${metricLine}`,
       `- 错误信息：${safeErrorMessage || "none"}`,
       `- 失败信号：${failureLine}`,
+      `- 失败样例：${failureCaseLine}`,
       "- 最小回归：失败样例 + 空输入/单元素/重复值/极值。"
     ].join("\n");
   }
@@ -852,13 +1417,16 @@ export class AiController {
 
   private buildUserReviewContext(body: ReviewBody): string {
     const safeFailureSignals = this.sanitizeFailureSignals(body.failureSignals);
+    const safeFailureCase = this.sanitizeFailureCase(body.failureCase);
     const safeErrorMessage = this.redactPromptInjection(body.errorMessage ?? "", 240);
+    const safeNoteContext = this.redactPromptInjection(body.noteContext ?? "", 2400);
 
     return JSON.stringify(
       {
         problemSlug: body.problemSlug ?? null,
         submissionId: body.submissionId ?? null,
         provider: normalizeAiProvider(body.provider),
+        aiConfigId: body.aiConfigId ?? null,
         language: body.language ?? null,
         mode: body.mode ?? null,
         status: body.status ?? null,
@@ -867,8 +1435,10 @@ export class AiController {
         passedCount: body.passedCount ?? null,
         totalCount: body.totalCount ?? null,
         failureSignals: safeFailureSignals,
+        failureCase: safeFailureCase ?? null,
         errorMessage: safeErrorMessage || null,
-        code: body.code?.slice(0, 8000) ?? null
+        code: body.code?.slice(0, 8000) ?? null,
+        noteContext: safeNoteContext || null
       },
       null,
       2
@@ -880,7 +1450,9 @@ export class AiController {
     return {
       ...body,
       errorMessage: this.redactPromptInjection(body.errorMessage ?? "", 240) || null,
-      failureSignals: this.sanitizeFailureSignals(body.failureSignals)
+      failureSignals: this.sanitizeFailureSignals(body.failureSignals),
+      failureCase: this.sanitizeFailureCase(body.failureCase) ?? null,
+      noteContext: this.redactPromptInjection(body.noteContext ?? "", 12000) || undefined
     };
   }
 
@@ -893,6 +1465,76 @@ export class AiController {
       ...item,
       signal: this.redactPromptInjection(item.signal ?? "", 220)
     }));
+  }
+
+  private sanitizeFailureCase(failureCase?: ReviewFailureCase | null): ReviewFailureCase | undefined {
+    if (!failureCase) {
+      return undefined;
+    }
+
+    return {
+      status: failureCase.status,
+      isHidden: Boolean(failureCase.isHidden),
+      inputData: this.redactPromptInjection(failureCase.inputData ?? "", 400),
+      actualOutput: this.redactPromptInjection(failureCase.actualOutput ?? "", 220) || null,
+      expectedOutput: this.redactPromptInjection(failureCase.expectedOutput ?? "", 220),
+      stderr: this.redactPromptInjection(failureCase.stderr ?? "", 220) || null
+    };
+  }
+
+  private describeFailureCase(failureCase?: ReviewFailureCase | null): string {
+    if (!failureCase) {
+      return "暂无结构化失败样例";
+    }
+
+    const visibility = failureCase.isHidden ? "隐藏用例" : "公开用例";
+    return `${visibility}：输出=${failureCase.actualOutput ?? "(none)"}，期望=${failureCase.expectedOutput || "(none)"}`;
+  }
+
+  private extractFailureCaseFindings(body: ReviewBody, failureCase?: ReviewFailureCase | null): string[] {
+    if (!failureCase) {
+      return [];
+    }
+
+    const status = (body.status ?? failureCase.status ?? "").toUpperCase();
+    const actual = (failureCase.actualOutput ?? "").trim();
+    const expected = (failureCase.expectedOutput ?? "").trim();
+    const inputData = (failureCase.inputData ?? "").trim();
+    const findings: string[] = [];
+
+    if (!failureCase.isHidden && status === "WA" && expected.length > 0) {
+      if (actual.length > 0) {
+        findings.push(`公开用例已直接暴露错误：输入 \`${inputData || "(省略)"}\` 时，你的输出是 \`${actual}\`，期望是 \`${expected}\`。`);
+      } else {
+        findings.push(`公开用例已直接暴露错误：输入 \`${inputData || "(省略)"}\` 时没有得到期望输出 \`${expected}\`。`);
+      }
+    }
+
+    if (
+      body.problemSlug === "minimum-window-substring" &&
+      status === "WA" &&
+      actual.length > 0 &&
+      expected.length > 0 &&
+      actual !== expected
+    ) {
+      findings.push("这题是滑动窗口最短覆盖。当前实现更像记录了第一个可行窗口，但没有在窗口满足条件后继续收缩左边界并持续更新最短答案。");
+      findings.push("优先核对两处：一是满足条件后是否进入 `while` 收缩；二是更新最优答案时是否比较了更短窗口，而不是只在首次命中时赋值。");
+      return findings.slice(0, 3);
+    }
+
+    if (status === "WA" && actual.length > 0 && expected.length > 0) {
+      if (actual.length > expected.length) {
+        findings.push("当前答案比期望更长，优先检查“命中后收缩窗口/更新最优答案”的条件是否缺失。");
+      } else if (actual.length < expected.length) {
+        findings.push("当前答案比期望更短，优先检查是否过早收缩窗口或遗漏了必需元素。");
+      }
+    }
+
+    if ((status === "WA" || status === "RE") && failureCase.stderr) {
+      findings.push(`失败样例 stderr 关键信号：\`${failureCase.stderr}\`。`);
+    }
+
+    return findings.slice(0, 3);
   }
 
   private redactPromptInjection(text: string, maxLength: number): string {
@@ -925,6 +1567,7 @@ export class AiController {
   }
 
   private buildUserSolutionContext(body: SolutionBody): string {
+    const safeNoteContext = this.redactPromptInjection(body.noteContext ?? "", 2400);
     return JSON.stringify(
       {
         problemSlug: body.problemSlug ?? null,
@@ -932,10 +1575,12 @@ export class AiController {
         problemTitle: body.problemTitle ?? null,
         modeSupport: body.modeSupport ?? null,
         provider: normalizeAiProvider(body.provider),
+        aiConfigId: body.aiConfigId ?? null,
         preferredLanguage: body.preferredLanguage ?? "cpp",
         description: body.description?.slice(0, 12000) ?? null,
         sampleInput: body.sampleInput?.slice(0, 2000) ?? null,
-        sampleOutput: body.sampleOutput?.slice(0, 2000) ?? null
+        sampleOutput: body.sampleOutput?.slice(0, 2000) ?? null,
+        noteContext: safeNoteContext || null
       },
       null,
       2
@@ -945,13 +1590,15 @@ export class AiController {
   private async buildAiTutorReviewPayload(
     body: ReviewBody,
     sessionId: string | null,
-    provider: AiProvider | null
+    provider: AiProvider | null,
+    userId: string
   ): Promise<ReviewBody> {
     const normalizedProvider = provider ?? normalizeAiProvider(body.provider);
     const basePayload: ReviewBody = {
       ...body,
       sessionId: sessionId ?? undefined,
-      provider: normalizedProvider ?? undefined
+      provider: normalizedProvider ?? undefined,
+      aiConfigId: body.aiConfigId ?? undefined
     };
 
     if (!body.submissionId) {
@@ -986,11 +1633,16 @@ export class AiController {
         return basePayload;
       }
 
-      const failureSignals = await this.loadSubmissionFailureSignals(row.id);
+      const [failureSignals, failureCase] = await Promise.all([
+        this.loadSubmissionFailureSignals(row.id),
+        this.loadSubmissionFailureCase(row.id)
+      ]);
+      const resolvedProblemSlug = basePayload.problemSlug ?? row.problemSlug;
+      const noteContext = await this.loadProblemNoteContext(userId, resolvedProblemSlug);
 
       return {
         ...basePayload,
-        problemSlug: basePayload.problemSlug ?? row.problemSlug,
+        problemSlug: resolvedProblemSlug,
         language: basePayload.language ?? row.language,
         mode: basePayload.mode ?? row.mode,
         code: basePayload.code ?? row.code,
@@ -1000,11 +1652,34 @@ export class AiController {
         passedCount: basePayload.passedCount ?? row.passedCount,
         totalCount: basePayload.totalCount ?? row.totalCount,
         errorMessage: basePayload.errorMessage ?? row.errorMessage,
-        failureSignals: basePayload.failureSignals?.length ? basePayload.failureSignals : failureSignals
+        failureSignals: basePayload.failureSignals?.length ? basePayload.failureSignals : failureSignals,
+        failureCase: basePayload.failureCase ?? failureCase,
+        noteContext: basePayload.noteContext ?? noteContext ?? undefined
       };
     } catch {
-      return basePayload;
+      const noteContext = await this.loadProblemNoteContext(userId, basePayload.problemSlug);
+      return {
+        ...basePayload,
+        noteContext: basePayload.noteContext ?? noteContext ?? undefined
+      };
     }
+  }
+
+  private async buildAiTutorSolutionPayload(
+    body: SolutionBody,
+    sessionId: string | null,
+    provider: AiProvider | null,
+    userId: string
+  ): Promise<SolutionBody> {
+    const normalizedProvider = provider ?? normalizeAiProvider(body.provider);
+    const noteContext = await this.loadProblemNoteContext(userId, body.problemSlug);
+    return {
+      ...body,
+      sessionId: sessionId ?? undefined,
+      provider: normalizedProvider ?? undefined,
+      aiConfigId: body.aiConfigId ?? undefined,
+      noteContext: body.noteContext ?? noteContext ?? undefined
+    };
   }
 
   private async loadSubmissionFailureSignals(submissionId: string): Promise<ReviewFailureSignal[]> {
@@ -1034,6 +1709,37 @@ export class AiController {
     }));
   }
 
+  private async loadSubmissionFailureCase(submissionId: string): Promise<ReviewFailureCase | null> {
+    const result = await query<SubmissionFailureCaseRow>(
+      `
+        SELECT
+          scr.status,
+          tc.is_hidden AS "isHidden",
+          tc.input_data AS "inputData",
+          scr.actual_output AS "actualOutput",
+          tc.expected_output AS "expectedOutput",
+          scr.stderr
+        FROM submission_case_results scr
+        INNER JOIN test_cases tc ON tc.id = scr.case_id
+        WHERE scr.submission_id = $1
+          AND scr.status <> 'AC'
+        ORDER BY tc.is_hidden ASC, scr.id ASC
+        LIMIT 1;
+      `,
+      [submissionId]
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      return null;
+    }
+
+    return {
+      ...row,
+      actualOutput: row.actualOutput ?? inferActualOutputFromStderr(row.stderr)
+    };
+  }
+
   private summarizeFailureSignal(row: SubmissionFailureSignalRow): string {
     if (row.isHidden) {
       return "隐藏用例未通过，请重点复核边界条件、状态转移与复杂度。";
@@ -1046,6 +1752,39 @@ export class AiController {
 
     const oneLine = stderr.replace(/\s+/g, " ").slice(0, 220);
     return oneLine;
+  }
+
+  private async loadProblemNoteContext(userId: string, problemSlug?: string): Promise<string | null> {
+    if (!problemSlug) {
+      return null;
+    }
+
+    try {
+      const result = await query<ProblemNoteContextRow>(
+        `
+          SELECT
+            user_problem_notes.content_md AS "contentMd",
+            user_problem_notes.matched_heading AS "matchedHeading",
+            user_problem_notes.source_filename AS "sourceFilename"
+          FROM user_problem_notes
+          INNER JOIN problems ON problems.id = user_problem_notes.problem_id
+          WHERE user_problem_notes.user_id = $1
+            AND problems.slug = $2
+          LIMIT 1;
+        `,
+        [userId, problemSlug]
+      );
+
+      const row = result.rows[0];
+      if (!row?.contentMd) {
+        return null;
+      }
+
+      const header = `笔记来源: ${row.sourceFilename} | 匹配段落: ${row.matchedHeading}`;
+      return `${header}\n\n${row.contentMd}`.slice(0, 12000);
+    } catch {
+      return null;
+    }
   }
 
   private extractCodeSignals(code: string): string[] {
@@ -1191,7 +1930,7 @@ export class AiController {
 
     try {
       const [userId, problemId, submissionId] = await Promise.all([
-        this.getOrCreateDemoUserId(),
+        getOrCreateDemoUserId(),
         this.resolveProblemId(body.problemSlug),
         this.resolveSubmissionId(body.submissionId)
       ]);
@@ -1267,20 +2006,5 @@ export class AiController {
 
     const result = await query<IdRow>("SELECT id FROM submissions WHERE id = $1 LIMIT 1;", [submissionId]);
     return result.rows[0]?.id ?? null;
-  }
-
-  private async getOrCreateDemoUserId(): Promise<string> {
-    const userResult = await query<UserRow>(
-      `
-        INSERT INTO users(email, password_hash, nickname)
-        VALUES ($1, $2, $3)
-        ON CONFLICT (email) DO UPDATE
-          SET updated_at = NOW()
-        RETURNING id;
-      `,
-      [DEMO_USER_EMAIL, "demo-password-not-used", "Demo User"]
-    );
-
-    return userResult.rows[0].id;
   }
 }

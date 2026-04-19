@@ -30,9 +30,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="min-h-screen text-[var(--lc-text)] antialiased">
+      <body className="lc-app text-[var(--lc-text)] antialiased">
         <TopNav />
-        <main className="w-full px-3 py-5 md:px-5 md:py-6 xl:px-8 2xl:px-10">{children}</main>
+        <main className="lc-shell flex-1">{children}</main>
       </body>
     </html>
   );

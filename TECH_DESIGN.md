@@ -3,7 +3,7 @@
 ## 1. 设计目标与范围
 
 本设计聚焦 V1.0（MVP）主流程：`做题 -> 提交判题 -> AI 诊断/点评`，并为 V2.0 的个性化推荐与能力画像预留扩展位。  
-当前实现中，`/progress` 页面已提前落地近 90 天打卡热力图与 Top8 标签能力雷达图（按浏览器时区统计）。
+当前实现中，`/progress` 页面已落地近 90 天打卡热力图、Top8 标签能力雷达图，以及掌握度总览与待复习清单（按浏览器时区统计）。
 
 约束目标：
 - 判题反馈尽量控制在 2 秒内（含队列与执行）。
@@ -163,6 +163,8 @@ LeetcodePro/
   - `difficulty`
   - `description_md`
   - `input_spec`, `output_spec`
+  - `acm_input_spec`, `acm_output_spec`
+  - `acm_sample_input`, `acm_sample_output`
   - `mode_support`（`CORE|ACM|BOTH`）
 
 - `problem_tags`
@@ -292,6 +294,17 @@ LeetcodePro/
 - API：`GET /api/progress/overview?timezone=<IANA>`
 - 热力图口径：近 90 天按日累计 `AC` 提交次数（同题同日多次 `AC` 也累计）。
 - 雷达口径：Top8 高频标签覆盖率，`coverage = 近90天该标签已 AC 题数（按题去重） / 标签全库总题数`。
+- 掌握度口径：
+  - 仅统计 `C++` 提交；Python 不计入掌握度升降。
+  - 双轨道：`core-cpp` 与 `acm-cpp`。
+  - 状态枚举：`UNTOUCHED | LEARNING | REINFORCING | MASTERED | REVIEW_DUE`。
+  - 达到 `MASTERED` 需满足同模式“近 7 天连续 2 次 AC”。
+  - 复习间隔采用 `1/3/7/14/30` 天遗忘曲线，超过 `nextReviewAt` 进入 `REVIEW_DUE`。
+- 进度页 mastery 聚合：
+  - `statusCounts`（状态分布）
+  - `masteredProblems`、`dueReviewProblems`、`bothModesMasteredProblems`
+  - `modeCompletion`（core/acm 熟练题数与支持题数）
+  - `dueReviewItems`（Top10，按逾期天数降序）
 - 时区策略：以前端浏览器本地时区为准，后端做 IANA 校验并按传入时区分桶。
 
 ---

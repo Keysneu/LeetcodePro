@@ -194,7 +194,12 @@ export default function ProblemResizableLayout({
 
   const handleDragStart = useCallback(
     (event: React.PointerEvent<HTMLButtonElement>) => {
-      if (!isDesktop || event.button !== 0) {
+      if (!isDesktop) {
+        return;
+      }
+
+      // Mouse requires left click; touch/pen should be allowed directly.
+      if (event.pointerType === "mouse" && event.button !== 0) {
         return;
       }
 
@@ -294,31 +299,39 @@ export default function ProblemResizableLayout({
     dividerAriaLabel ?? (direction === "horizontal" ? "拖拽调整左右区域宽度" : "拖拽调整上下区域高度");
   const containerClassName =
     direction === "horizontal"
-      ? "flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-3"
-      : "flex flex-col gap-3";
+      ? "flex h-full min-h-0 flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-3"
+      : "flex min-h-0 flex-col gap-3 lg:h-full";
 
   return (
     <div ref={containerRef} className={cx(containerClassName, className)}>
-      <div className={cx(direction === "horizontal" ? "min-w-0" : "min-h-0 min-w-0", primaryPaneClassName)} style={primaryPaneStyle}>
+      <div
+        className={cx(
+          direction === "horizontal" ? "min-w-0 lg:h-full lg:min-h-0" : "min-h-0 min-w-0 lg:h-full",
+          primaryPaneClassName
+        )}
+        style={primaryPaneStyle}
+      >
         {panels[0]}
       </div>
 
       {isDesktop ? (
-        <div className={direction === "horizontal" ? "flex shrink-0 items-stretch" : "flex shrink-0 items-center"}>
+        <div className={direction === "horizontal" ? "flex shrink-0 items-stretch" : "flex shrink-0 items-stretch"}>
           <button
             type="button"
             aria-label={resolvedDividerAriaLabel}
             className={cx(
-              "group relative rounded-full border bg-[var(--lc-surface-soft)] transition hover:bg-[var(--lc-accent-soft)] focus:outline-none",
-              direction === "horizontal" ? "w-2 cursor-col-resize" : "h-2 w-full cursor-row-resize"
+              "group relative border bg-[var(--lc-surface-soft)] transition hover:bg-[var(--lc-accent-soft)] focus:outline-none",
+              direction === "horizontal" ? "w-2 cursor-col-resize rounded-full" : "h-2 w-full cursor-row-resize rounded-full",
+              isDragging && direction === "vertical" ? "border-[var(--lc-accent)] bg-[var(--lc-accent-soft)]" : undefined
             )}
             onPointerDown={handleDragStart}
             onDoubleClick={() => applyRatio(resolvedDefaultRatio)}
+            style={{ touchAction: "none" }}
           >
             <span
               className={cx(
                 "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full transition",
-                direction === "horizontal" ? "h-20 w-[2px]" : "h-[2px] w-20",
+                direction === "horizontal" ? "h-20 w-[2px]" : "h-[2px] w-10",
                 isDragging ? "bg-[var(--lc-accent)]" : "bg-[var(--lc-border-soft)] group-hover:bg-[var(--lc-accent)]"
               )}
             />
@@ -326,7 +339,13 @@ export default function ProblemResizableLayout({
         </div>
       ) : null}
 
-      <div className={cx(direction === "horizontal" ? "min-w-0 flex-1" : "min-h-0 min-w-0 flex-1", secondaryPaneClassName)} style={secondaryPaneStyle}>
+      <div
+        className={cx(
+          direction === "horizontal" ? "min-w-0 flex-1 lg:h-full lg:min-h-0" : "min-h-0 min-w-0 flex-1 lg:h-full",
+          secondaryPaneClassName
+        )}
+        style={secondaryPaneStyle}
+      >
         {panels[1]}
       </div>
     </div>

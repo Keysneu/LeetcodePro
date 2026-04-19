@@ -5,6 +5,6 @@
   "scripts": {
     "dev": "../../.venv/bin/python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
     "start": "../../.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000",
-    "check": "../../.venv/bin/python -m py_compile app/main.py"
+    "check": "../../.venv/bin/python -m py_compile app/main.py app/rag_stack.py"
   }
 }

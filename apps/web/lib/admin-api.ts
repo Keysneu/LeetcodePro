@@ -28,6 +28,10 @@ export type AdminProblemJudgeData = AdminProblemSummary & {
   description: string;
   inputSpec: string;
   outputSpec: string;
+  acmInputSpec: string;
+  acmOutputSpec: string;
+  acmSampleInput: string;
+  acmSampleOutput: string;
   testCases: AdminTestCase[];
 };
 

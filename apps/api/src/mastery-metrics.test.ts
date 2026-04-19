@@ -22,91 +22,84 @@ function submission(
   };
 }
 
-test("returns untouched when there is no submission", () => {
-  const result = buildProblemMastery("BOTH", []);
+test("returns untouched when there is no cpp submission", () => {
+  const result = buildProblemMastery("BOTH", [], new Date("2026-04-15T00:00:00.000Z"));
   assert.equal(result.summary.overallStatus, "UNTOUCHED");
-  assert.equal(result.summary.isSolved, false);
   assert.equal(result.summary.totalAttempts, 0);
-  assert.equal(result.summary.attemptsToFirstAc, null);
-  assert.equal(result.summary.latestStatus, null);
-  assert.equal(result.tracks.filter((item) => item.status === "UNTOUCHED").length, 4);
+  assert.equal(result.tracks.length, 2);
+  assert.equal(result.tracks.filter((item) => item.status === "UNTOUCHED").length, 2);
 });
 
-test("returns attempting when only non-ac attempts exist", () => {
-  const result = buildProblemMastery("BOTH", [
-    submission("s1", "WA", "2026-04-14T00:00:00.000Z"),
-    submission("s2", "TLE", "2026-04-14T00:01:00.000Z")
-  ]);
+test("python-only ac does not upgrade mastery", () => {
+  const result = buildProblemMastery(
+    "BOTH",
+    [submission("s1", "AC", "2026-04-14T00:00:00.000Z", "core", "python")],
+    new Date("2026-04-15T00:00:00.000Z")
+  );
 
-  assert.equal(result.summary.overallStatus, "ATTEMPTING");
-  assert.equal(result.summary.isSolved, false);
-  assert.equal(result.summary.totalAttempts, 2);
-  assert.equal(result.summary.latestStatus, "TLE");
+  assert.equal(result.summary.overallStatus, "UNTOUCHED");
+  assert.equal(result.summary.totalAttempts, 0);
+  assert.equal(result.tracks.every((track) => track.totalAttempts === 0), true);
 });
 
-test("classifies first-attempt ac as solved once", () => {
-  const result = buildProblemMastery("BOTH", [submission("s1", "AC", "2026-04-14T00:00:00.000Z")]);
+test("two recent consecutive ac in same mode becomes mastered", () => {
+  const result = buildProblemMastery(
+    "CORE",
+    [
+      submission("s1", "AC", "2026-04-13T00:00:00.000Z", "core", "cpp"),
+      submission("s2", "AC", "2026-04-14T00:00:00.000Z", "core", "cpp")
+    ],
+    new Date("2026-04-15T00:00:00.000Z")
+  );
 
-  assert.equal(result.summary.overallStatus, "SOLVED_ONCE");
-  assert.equal(result.summary.attemptsToFirstAc, 1);
+  assert.equal(result.summary.overallStatus, "MASTERED");
+  assert.equal(result.summary.consecutiveAc, 2);
+  assert.equal(result.summary.reviewIntervalDays, 3);
+  assert.equal(result.summary.overdueDays, null);
 });
 
-test("classifies second-attempt ac as solved twice", () => {
-  const result = buildProblemMastery("BOTH", [
-    submission("s1", "WA", "2026-04-14T00:00:00.000Z"),
-    submission("s2", "AC", "2026-04-14T00:01:00.000Z")
-  ]);
+test("review due when reinforcing interval expires", () => {
+  const result = buildProblemMastery(
+    "CORE",
+    [submission("s1", "AC", "2026-04-10T00:00:00.000Z", "core", "cpp")],
+    new Date("2026-04-15T00:00:00.000Z")
+  );
 
-  assert.equal(result.summary.overallStatus, "SOLVED_TWICE");
-  assert.equal(result.summary.attemptsToFirstAc, 2);
+  assert.equal(result.summary.overallStatus, "REVIEW_DUE");
+  assert.deepEqual(result.summary.dueModes, ["core"]);
+  assert.equal(result.summary.overdueDays, 4);
 });
 
-test("classifies third-attempt ac as solved many", () => {
-  const result = buildProblemMastery("BOTH", [
-    submission("s1", "WA", "2026-04-14T00:00:00.000Z"),
-    submission("s2", "TLE", "2026-04-14T00:01:00.000Z"),
-    submission("s3", "AC", "2026-04-14T00:02:00.000Z")
-  ]);
+test("review due when mastered track passes review interval", () => {
+  const result = buildProblemMastery(
+    "CORE",
+    [
+      submission("s1", "AC", "2026-04-01T00:00:00.000Z", "core", "cpp"),
+      submission("s2", "AC", "2026-04-02T00:00:00.000Z", "core", "cpp")
+    ],
+    new Date("2026-04-15T00:00:00.000Z")
+  );
 
-  assert.equal(result.summary.overallStatus, "SOLVED_MANY");
-  assert.equal(result.summary.attemptsToFirstAc, 3);
+  assert.equal(result.tracks[0].consecutiveAc, 2);
+  assert.equal(result.summary.overallStatus, "REVIEW_DUE");
+  assert.equal(result.summary.overdueDays, 10);
 });
 
-test("summary solved if any track solved while other tracks are still attempting", () => {
-  const result = buildProblemMastery("BOTH", [
-    submission("s1", "AC", "2026-04-14T00:00:00.000Z", "core", "cpp"),
-    submission("s2", "WA", "2026-04-14T00:01:00.000Z", "acm", "python")
-  ]);
+test("overall status follows weaker mode when core is mastered but acm untouched", () => {
+  const result = buildProblemMastery(
+    "BOTH",
+    [
+      submission("s1", "AC", "2026-04-13T00:00:00.000Z", "core", "cpp"),
+      submission("s2", "AC", "2026-04-14T00:00:00.000Z", "core", "cpp")
+    ],
+    new Date("2026-04-15T00:00:00.000Z")
+  );
 
-  assert.equal(result.summary.isSolved, true);
-  assert.equal(result.summary.overallStatus, "SOLVED_ONCE");
-  const acmPython = result.tracks.find((item) => item.mode === "acm" && item.language === "python");
-  assert.ok(acmPython);
-  assert.equal(acmPython.status, "ATTEMPTING");
-});
-
-test("unsupported tracks are marked unsupported for CORE-only problems", () => {
-  const result = buildProblemMastery("CORE", [
-    submission("s1", "WA", "2026-04-14T00:00:00.000Z", "core", "cpp")
-  ]);
-
-  const acmCpp = result.tracks.find((item) => item.mode === "acm" && item.language === "cpp");
-  const acmPython = result.tracks.find((item) => item.mode === "acm" && item.language === "python");
-  assert.ok(acmCpp);
-  assert.ok(acmPython);
-  assert.equal(acmCpp.status, "UNSUPPORTED");
-  assert.equal(acmPython.status, "UNSUPPORTED");
-});
-
-test("latest status can differ from solved status and queued/running are excluded from attempts", () => {
-  const result = buildProblemMastery("BOTH", [
-    submission("s1", "WA", "2026-04-14T00:00:00.000Z"),
-    submission("s2", "AC", "2026-04-14T00:01:00.000Z"),
-    submission("s3", "RUNNING", "2026-04-14T00:02:00.000Z")
-  ]);
-
-  assert.equal(result.summary.overallStatus, "SOLVED_TWICE");
-  assert.equal(result.summary.attemptsToFirstAc, 2);
-  assert.equal(result.summary.totalAttempts, 2);
-  assert.equal(result.summary.latestStatus, "RUNNING");
+  const coreTrack = result.tracks.find((item) => item.mode === "core");
+  const acmTrack = result.tracks.find((item) => item.mode === "acm");
+  assert.ok(coreTrack);
+  assert.ok(acmTrack);
+  assert.equal(coreTrack.status, "MASTERED");
+  assert.equal(acmTrack.status, "UNTOUCHED");
+  assert.equal(result.summary.overallStatus, "UNTOUCHED");
 });

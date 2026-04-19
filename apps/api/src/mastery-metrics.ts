@@ -1,6 +1,6 @@
 import { CodeMode, Language, ModeSupport, SubmissionStatus } from "./types";
 
-export type MasteryStatus = "UNTOUCHED" | "ATTEMPTING" | "SOLVED_ONCE" | "SOLVED_TWICE" | "SOLVED_MANY" | "UNSUPPORTED";
+export type MasteryStatus = "UNTOUCHED" | "LEARNING" | "REINFORCING" | "MASTERED" | "REVIEW_DUE" | "UNSUPPORTED";
 export type MasterySummaryStatus = Exclude<MasteryStatus, "UNSUPPORTED">;
 
 export type MasterySubmissionRow = {
@@ -23,17 +23,27 @@ export type MasteryTrack = {
   supported: boolean;
   status: MasteryStatus;
   totalAttempts: number;
-  attemptsToFirstAc: number | null;
   latestStatus: SubmissionStatus | null;
   isSolved: boolean;
+  totalAcCount: number;
+  consecutiveAc: number;
+  recentConsecutiveAc: number;
+  reviewIntervalDays: number | null;
+  lastAcAt: string | null;
+  nextReviewAt: string | null;
+  overdueDays: number | null;
 };
 
 export type MasterySummary = {
   overallStatus: MasterySummaryStatus;
   isSolved: boolean;
   totalAttempts: number;
-  attemptsToFirstAc: number | null;
   latestStatus: SubmissionStatus | null;
+  dueModes: CodeMode[];
+  consecutiveAc: number;
+  reviewIntervalDays: number | null;
+  nextReviewAt: string | null;
+  overdueDays: number | null;
 };
 
 export type ProblemMastery = {
@@ -43,10 +53,11 @@ export type ProblemMastery = {
 
 const TRACK_DEFINITIONS: ReadonlyArray<{ mode: CodeMode; language: Language }> = [
   { mode: "core", language: "cpp" },
-  { mode: "core", language: "python" },
-  { mode: "acm", language: "cpp" },
-  { mode: "acm", language: "python" }
+  { mode: "acm", language: "cpp" }
 ];
+const RECENT_WINDOW_DAYS = 7;
+const REVIEW_INTERVALS_DAYS: ReadonlyArray<number> = [1, 3, 7, 14, 30];
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 function isAttemptStatus(status: SubmissionStatus): boolean {
   return status !== "QUEUED" && status !== "RUNNING";
@@ -82,32 +93,84 @@ function compareSubmissionOrder(left: MasterySubmissionRow, right: MasterySubmis
   return left.id.localeCompare(right.id);
 }
 
-function deriveSolvedStatus(attemptsToFirstAc: number | null): MasterySummaryStatus | null {
-  if (attemptsToFirstAc === null) {
+function toTimestamp(value: string): number | null {
+  const ts = Date.parse(value);
+  if (Number.isNaN(ts)) {
     return null;
   }
-  if (attemptsToFirstAc <= 1) {
-    return "SOLVED_ONCE";
+  return ts;
+}
+
+function toIsoString(ts: number): string {
+  return new Date(ts).toISOString();
+}
+
+function pickReviewIntervalDays(consecutiveAc: number): number {
+  const normalized = Math.max(1, consecutiveAc);
+  const index = Math.min(normalized, REVIEW_INTERVALS_DAYS.length) - 1;
+  return REVIEW_INTERVALS_DAYS[index];
+}
+
+function deriveTrackStatus(params: {
+  hasAnySubmission: boolean;
+  totalAcCount: number;
+  recentConsecutiveAc: number;
+  overdueDays: number | null;
+}): MasterySummaryStatus {
+  const { hasAnySubmission, totalAcCount, recentConsecutiveAc, overdueDays } = params;
+  if (!hasAnySubmission) {
+    return "UNTOUCHED";
   }
-  if (attemptsToFirstAc === 2) {
-    return "SOLVED_TWICE";
+  if (totalAcCount === 0) {
+    return "LEARNING";
   }
-  return "SOLVED_MANY";
+  if (overdueDays !== null) {
+    return "REVIEW_DUE";
+  }
+  if (recentConsecutiveAc >= 2) {
+    return "MASTERED";
+  }
+  return "REINFORCING";
+}
+
+function summaryStatusRank(status: MasterySummaryStatus): number {
+  if (status === "UNTOUCHED") {
+    return 0;
+  }
+  if (status === "LEARNING") {
+    return 1;
+  }
+  if (status === "REVIEW_DUE") {
+    return 2;
+  }
+  if (status === "REINFORCING") {
+    return 3;
+  }
+  return 4;
 }
 
 type DerivedTrackStats = {
   totalAttempts: number;
-  attemptsToFirstAc: number | null;
   latestStatus: SubmissionStatus | null;
   hasAnySubmission: boolean;
+  totalAcCount: number;
+  consecutiveAc: number;
+  recentConsecutiveAc: number;
+  reviewIntervalDays: number | null;
+  lastAcAt: string | null;
+  nextReviewAt: string | null;
+  overdueDays: number | null;
 };
 
-function deriveTrackStats(submissions: MasterySubmissionRow[]): DerivedTrackStats {
+function deriveTrackStats(submissions: MasterySubmissionRow[], now: Date): DerivedTrackStats {
   const sorted = [...submissions].sort(compareSubmissionOrder);
   const latestStatus = sorted.length > 0 ? sorted[sorted.length - 1].status : null;
+  const recentThresholdTs = now.getTime() - RECENT_WINDOW_DAYS * DAY_MS;
 
   let totalAttempts = 0;
-  let attemptsToFirstAc: number | null = null;
+  let totalAcCount = 0;
+  let consecutiveAc = 0;
+  let lastAcAt: string | null = null;
 
   for (const submission of sorted) {
     if (!isAttemptStatus(submission.status)) {
@@ -115,23 +178,71 @@ function deriveTrackStats(submissions: MasterySubmissionRow[]): DerivedTrackStat
     }
 
     totalAttempts += 1;
-    if (submission.status === "AC" && attemptsToFirstAc === null) {
-      attemptsToFirstAc = totalAttempts;
+    if (submission.status === "AC") {
+      totalAcCount += 1;
+      consecutiveAc += 1;
+      lastAcAt = submission.createdAt;
+      continue;
+    }
+
+    consecutiveAc = 0;
+  }
+
+  let recentConsecutiveAc = 0;
+  for (let index = sorted.length - 1; index >= 0; index -= 1) {
+    const submission = sorted[index];
+    if (!isAttemptStatus(submission.status)) {
+      continue;
+    }
+    if (submission.status !== "AC") {
+      break;
+    }
+    const ts = toTimestamp(submission.createdAt);
+    if (ts === null || ts < recentThresholdTs) {
+      break;
+    }
+    recentConsecutiveAc += 1;
+  }
+
+  let reviewIntervalDays: number | null = null;
+  let nextReviewAt: string | null = null;
+  let overdueDays: number | null = null;
+
+  if (totalAcCount > 0 && lastAcAt) {
+    reviewIntervalDays = pickReviewIntervalDays(consecutiveAc);
+    const lastAcTs = toTimestamp(lastAcAt);
+    if (lastAcTs !== null) {
+      const nextReviewTs = lastAcTs + reviewIntervalDays * DAY_MS;
+      nextReviewAt = toIsoString(nextReviewTs);
+      if (now.getTime() >= nextReviewTs) {
+        overdueDays = Math.floor((now.getTime() - nextReviewTs) / DAY_MS);
+      }
     }
   }
 
   return {
     totalAttempts,
-    attemptsToFirstAc,
     latestStatus,
-    hasAnySubmission: sorted.length > 0
+    hasAnySubmission: sorted.length > 0,
+    totalAcCount,
+    consecutiveAc,
+    recentConsecutiveAc,
+    reviewIntervalDays,
+    lastAcAt,
+    nextReviewAt,
+    overdueDays
   };
 }
 
-export function buildProblemMastery(modeSupport: ModeSupport, submissions: MasterySubmissionRow[]): ProblemMastery {
+export function buildProblemMastery(
+  modeSupport: ModeSupport,
+  submissions: MasterySubmissionRow[],
+  now = new Date()
+): ProblemMastery {
+  const cppSubmissions = submissions.filter((item) => item.language === "cpp");
   const tracks: MasteryTrack[] = TRACK_DEFINITIONS.map((definition) => {
     const supported = isTrackSupported(modeSupport, definition.mode);
-    const scoped = submissions.filter(
+    const scoped = cppSubmissions.filter(
       (item) => item.mode === definition.mode && item.language === definition.language
     );
 
@@ -141,37 +252,98 @@ export function buildProblemMastery(modeSupport: ModeSupport, submissions: Maste
         supported: false,
         status: "UNSUPPORTED",
         totalAttempts: 0,
-        attemptsToFirstAc: null,
         latestStatus: null,
-        isSolved: false
+        isSolved: false,
+        totalAcCount: 0,
+        consecutiveAc: 0,
+        recentConsecutiveAc: 0,
+        reviewIntervalDays: null,
+        lastAcAt: null,
+        nextReviewAt: null,
+        overdueDays: null
       };
     }
 
-    const derived = deriveTrackStats(scoped);
-    const solvedStatus = deriveSolvedStatus(derived.attemptsToFirstAc);
+    const derived = deriveTrackStats(scoped, now);
+    const status = deriveTrackStatus({
+      hasAnySubmission: derived.hasAnySubmission,
+      totalAcCount: derived.totalAcCount,
+      recentConsecutiveAc: derived.recentConsecutiveAc,
+      overdueDays: derived.overdueDays
+    });
 
     return {
       ...definition,
       supported: true,
-      status: solvedStatus ?? (derived.hasAnySubmission ? "ATTEMPTING" : "UNTOUCHED"),
+      status,
       totalAttempts: derived.totalAttempts,
-      attemptsToFirstAc: derived.attemptsToFirstAc,
       latestStatus: derived.latestStatus,
-      isSolved: derived.attemptsToFirstAc !== null
+      isSolved: derived.totalAcCount > 0,
+      totalAcCount: derived.totalAcCount,
+      consecutiveAc: derived.consecutiveAc,
+      recentConsecutiveAc: derived.recentConsecutiveAc,
+      reviewIntervalDays: derived.reviewIntervalDays,
+      lastAcAt: derived.lastAcAt,
+      nextReviewAt: derived.nextReviewAt,
+      overdueDays: derived.overdueDays
     };
   });
 
-  const supportedSubmissions = submissions.filter((item) => isTrackSupported(modeSupport, item.mode));
-  const summaryStats = deriveTrackStats(supportedSubmissions);
-  const solvedStatus = deriveSolvedStatus(summaryStats.attemptsToFirstAc);
+  const supportedTracks = tracks.filter((item) => item.supported);
+  const weakestTrack = supportedTracks.reduce<MasteryTrack | null>((current, next) => {
+    if (!current) {
+      return next;
+    }
+    const currentRank = summaryStatusRank(current.status as MasterySummaryStatus);
+    const nextRank = summaryStatusRank(next.status as MasterySummaryStatus);
+    if (nextRank < currentRank) {
+      return next;
+    }
+    if (nextRank > currentRank) {
+      return current;
+    }
+    const currentNextReviewTs = current.nextReviewAt ? toTimestamp(current.nextReviewAt) : null;
+    const nextNextReviewTs = next.nextReviewAt ? toTimestamp(next.nextReviewAt) : null;
+    if (currentNextReviewTs !== null && nextNextReviewTs !== null) {
+      return nextNextReviewTs < currentNextReviewTs ? next : current;
+    }
+    if (currentNextReviewTs === null && nextNextReviewTs !== null) {
+      return next;
+    }
+    return current;
+  }, null);
+
+  const latestSupportedSubmission = cppSubmissions
+    .filter((item) => isTrackSupported(modeSupport, item.mode))
+    .sort(compareSubmissionOrder)
+    .at(-1);
+
+  const dueTracks = supportedTracks.filter((track) => track.status === "REVIEW_DUE");
+  const earliestNextReviewTs = supportedTracks
+    .map((track) => (track.nextReviewAt ? toTimestamp(track.nextReviewAt) : null))
+    .filter((value): value is number => value !== null)
+    .sort((left, right) => left - right)[0];
+  const maxOverdueDays = dueTracks.reduce<number | null>((max, track) => {
+    if (track.overdueDays === null) {
+      return max;
+    }
+    if (max === null) {
+      return track.overdueDays;
+    }
+    return Math.max(max, track.overdueDays);
+  }, null);
 
   return {
     summary: {
-      overallStatus: solvedStatus ?? (summaryStats.hasAnySubmission ? "ATTEMPTING" : "UNTOUCHED"),
-      isSolved: summaryStats.attemptsToFirstAc !== null,
-      totalAttempts: summaryStats.totalAttempts,
-      attemptsToFirstAc: summaryStats.attemptsToFirstAc,
-      latestStatus: summaryStats.latestStatus
+      overallStatus: weakestTrack ? (weakestTrack.status as MasterySummaryStatus) : "UNTOUCHED",
+      isSolved: supportedTracks.length > 0 && supportedTracks.every((track) => track.isSolved),
+      totalAttempts: supportedTracks.reduce((sum, track) => sum + track.totalAttempts, 0),
+      latestStatus: latestSupportedSubmission?.status ?? null,
+      dueModes: dueTracks.map((track) => track.mode),
+      consecutiveAc: weakestTrack?.consecutiveAc ?? 0,
+      reviewIntervalDays: weakestTrack?.reviewIntervalDays ?? null,
+      nextReviewAt: earliestNextReviewTs ? toIsoString(earliestNextReviewTs) : null,
+      overdueDays: maxOverdueDays
     },
     tracks
   };
@@ -179,7 +351,8 @@ export function buildProblemMastery(modeSupport: ModeSupport, submissions: Maste
 
 export function buildMasteryByProblem(
   problems: MasteryProblemRow[],
-  submissions: MasterySubmissionRow[]
+  submissions: MasterySubmissionRow[],
+  now = new Date()
 ): Map<string, ProblemMastery> {
   const grouped = new Map<string, MasterySubmissionRow[]>();
 
@@ -194,7 +367,7 @@ export function buildMasteryByProblem(
 
   const masteryByProblem = new Map<string, ProblemMastery>();
   for (const problem of problems) {
-    masteryByProblem.set(problem.id, buildProblemMastery(problem.modeSupport, grouped.get(problem.id) ?? []));
+    masteryByProblem.set(problem.id, buildProblemMastery(problem.modeSupport, grouped.get(problem.id) ?? [], now));
   }
 
   return masteryByProblem;

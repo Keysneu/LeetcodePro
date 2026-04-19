@@ -57,6 +57,33 @@ test("python acm mode reports WA for wrong output", async () => {
   }
 });
 
+test("python core mode accepts positional array input for single-parameter problems", async () => {
+  const submission = {
+    problemSlug: "container-with-most-water",
+    language: "python",
+    mode: "core",
+    code: `def maxArea(height):
+    left = 0
+    right = len(height) - 1
+    best = 0
+    while left < right:
+      best = max(best, (right - left) * min(height[left], height[right]))
+      if height[left] < height[right]:
+        left += 1
+      else:
+        right -= 1
+    return best
+`
+  };
+  const testCases = [{ id: "case-1", inputData: "[1,8,6,2,5,4,8,3,7]", expectedOutput: "49" }];
+
+  const result = await judgeSubmissionWithCases(submission, testCases);
+
+  assert.equal(result.status, "AC");
+  assert.equal(result.passedCount, 1);
+  assert.ok(result.caseResults.every((item) => item.status === "AC"));
+});
+
 test("cpp core mode accepts leetcode style solution class", async () => {
   const submission = {
     problemSlug: "two-sum",
@@ -83,6 +110,124 @@ public:
 
   assert.equal(result.status, "AC");
   assert.equal(result.passedCount, 2);
+  assert.ok(result.caseResults.every((item) => item.status === "AC"));
+});
+
+test("cpp core mode accepts positional array input for single-parameter problems", async () => {
+  const submission = {
+    problemSlug: "container-with-most-water",
+    language: "cpp",
+    mode: "core",
+    code: `class Solution {
+public:
+  int maxArea(vector<int>& height) {
+    int right = 0;
+    int left = static_cast<int>(height.size()) - 1;
+    int maxValue = 0;
+    while (right < left) {
+      const int currentValue = (left - right) * min(height[right], height[left]);
+      maxValue = max(maxValue, currentValue);
+      if (height[right] < height[left]) {
+        right += 1;
+      } else {
+        left -= 1;
+      }
+    }
+    return maxValue;
+  }
+};`
+  };
+  const testCases = [{ id: "case-1", inputData: "[1,8,6,2,5,4,8,3,7]", expectedOutput: "49" }];
+
+  const result = await judgeSubmissionWithCases(submission, testCases);
+
+  assert.equal(result.status, "AC");
+  assert.equal(result.passedCount, 1);
+  assert.ok(result.caseResults.every((item) => item.status === "AC"));
+});
+
+test("cpp core mode handles markdown-ticked vector input for move-zeroes", async () => {
+  const submission = {
+    problemSlug: "move-zeroes",
+    language: "cpp",
+    mode: "core",
+    code: `class Solution {
+public:
+  void moveZeroes(vector<int>& nums) {
+    int slow = 0;
+    const int n = static_cast<int>(nums.size());
+    for (int fast = 0; fast < n; ++fast) {
+      if (nums[fast] != 0) {
+        swap(nums[slow], nums[fast]);
+        slow += 1;
+      }
+    }
+  }
+};`
+  };
+  const testCases = [
+    {
+      id: "case-1",
+      inputData: "nums = `[0,1,0,3,12]`",
+      expectedOutput: "[1,3,12,0,0]"
+    }
+  ];
+
+  const result = await judgeSubmissionWithCases(submission, testCases);
+
+  assert.equal(result.status, "AC");
+  assert.equal(result.passedCount, 1);
+  assert.ok(result.caseResults.every((item) => item.status === "AC"));
+});
+
+test("cpp acm mode remains isolated for move-zeroes", async () => {
+  const submission = {
+    problemSlug: "move-zeroes",
+    language: "cpp",
+    mode: "acm",
+    code: `#include <algorithm>
+#include <iostream>
+#include <vector>
+using namespace std;
+
+int main() {
+  ios::sync_with_stdio(false);
+  cin.tie(nullptr);
+
+  int n = 0;
+  if (!(cin >> n)) return 0;
+  vector<int> nums(n);
+  for (int i = 0; i < n; ++i) cin >> nums[i];
+
+  int slow = 0;
+  for (int fast = 0; fast < n; ++fast) {
+    if (nums[fast] != 0) {
+      swap(nums[slow], nums[fast]);
+      slow += 1;
+    }
+  }
+
+  cout << "[";
+  for (int i = 0; i < n; ++i) {
+    if (i) cout << ",";
+    cout << nums[i];
+  }
+  cout << "]";
+  return 0;
+}`
+  };
+  const testCases = [
+    {
+      id: "case-1",
+      inputData: "nums = `[0,1,0,3,12]`",
+      expectedOutput: "[1,3,12,0,0]"
+    }
+  ];
+
+  const result = await judgeSubmissionWithCases(submission, testCases);
+
+  assert.equal(result.status, "AC");
+  assert.equal(result.passedCount, 1);
   assert.ok(result.caseResults.every((item) => item.status === "AC"));
 });
 
@@ -131,6 +276,27 @@ test("python core mode supports non-legacy hot100 slug", async () => {
   assert.ok(result.caseResults.every((item) => item.status === "AC"));
 });
 
+test("python acm mode accepts order-insensitive three-sum output", async () => {
+  const submission = {
+    problemSlug: "3sum",
+    language: "python",
+    mode: "acm",
+    code: `import sys
+_ = sys.stdin.read()
+print([[-1,0,1],[-1,-1,2]])
+`
+  };
+  const testCases = [
+    { id: "case-1", inputData: "nums = [-1,0,1,2,-1,-4]", expectedOutput: "[[-1,-1,2],[-1,0,1]]" }
+  ];
+
+  const result = await judgeSubmissionWithCases(submission, testCases);
+
+  assert.equal(result.status, "AC");
+  assert.equal(result.passedCount, 1);
+  assert.ok(result.caseResults.every((item) => item.status === "AC"));
+});
+
 test("python core mode supports design problems", async () => {
   const submission = {
     problemSlug: "min-stack",
@@ -172,6 +338,84 @@ test("python core mode supports design problems", async () => {
   assert.equal(result.status, "AC");
   assert.equal(result.passedCount, 1);
   assert.ok(result.caseResults.every((item) => item.status === "AC"));
+});
+
+test("python core mode serializes empty linked-list result as []", async () => {
+  const submission = {
+    problemSlug: "remove-nth-node-from-end-of-list",
+    language: "python",
+    mode: "core",
+    code: `def removeNthFromEnd(head, n):
+    dummy = ListNode(0, head)
+    fast = dummy
+    slow = dummy
+    for _ in range(n):
+        fast = fast.next
+    while fast.next:
+        fast = fast.next
+        slow = slow.next
+    slow.next = slow.next.next
+    return dummy.next
+`
+  };
+  const testCases = [{ id: "case-1", inputData: "head = [1], n = 1", expectedOutput: "[]" }];
+
+  const result = await judgeSubmissionWithCases(submission, testCases);
+
+  assert.equal(result.status, "AC");
+  assert.equal(result.passedCount, 1);
+  assert.equal(result.caseResults[0].actualOutput, "[]");
+});
+
+test("cpp core mode accepts vector<vector<char>> input conversion", async () => {
+  const submission = {
+    problemSlug: "number-of-islands",
+    language: "cpp",
+    mode: "core",
+    code: `class Solution {
+public:
+  int numIslands(vector<vector<char>>& grid) {
+    return static_cast<int>(grid.size());
+  }
+};`
+  };
+  const testCases = [{ id: "case-1", inputData: "grid = [[\"1\"],[\"0\"]]", expectedOutput: "2" }];
+
+  const result = await judgeSubmissionWithCases(submission, testCases);
+
+  assert.notEqual(result.status, "CE");
+  assert.equal(result.caseResults[0].status, "AC");
+});
+
+test("design problems do not treat scalar-only output as valid", async () => {
+  const submission = {
+    problemSlug: "lru-cache",
+    language: "python",
+    mode: "core",
+    code: `class LRUCache:
+    def __init__(self, capacity: int):
+        pass
+
+    def get(self, key: int) -> int:
+        return 1
+
+    def put(self, key: int, value: int) -> None:
+        pass
+`
+  };
+  const testCases = [
+    {
+      id: "case-1",
+      inputData: "[\"LRUCache\", \"put\", \"put\", \"get\", \"put\", \"get\", \"put\", \"get\", \"get\", \"get\"] [[2], [1, 1], [2, 2], [1], [3, 3], [2], [4, 4], [1], [3], [4]]",
+      expectedOutput: "[null, null, null, 1, null, -1, null, -1, 3, 4]"
+    }
+  ];
+
+  const result = await judgeSubmissionWithCases(submission, testCases);
+
+  assert.equal(result.status, "WA");
+  assert.equal(result.passedCount, 0);
+  assert.equal(result.caseResults[0].actualOutput, "[null,null,null,1,null,1,null,1,1,1]");
 });
 
 test("cpp core mode supports design problems", async () => {

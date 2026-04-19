@@ -40,7 +40,7 @@ function buildCppSolutionMain(problemSlug, meta) {
     paramDecls.push("    auto __intersection = __build_intersection_lists(__kv);");
   }
 
-  for (const param of method.params) {
+  for (const [paramIndex, param] of method.params.entries()) {
     const type = storageCppType(param.type);
     const name = param.name;
 
@@ -56,20 +56,20 @@ function buildCppSolutionMain(problemSlug, meta) {
 
     if ((problemSlug === "linked-list-cycle" || problemSlug === "linked-list-cycle-ii") && name === "head") {
       paramDecls.push(
-        "    ListNode* __head = __build_list_from_json(__resolve_param(__kv, \"head\"), true, __json_to_int(__resolve_param(__kv, \"pos\")));"
+        "    ListNode* __head = __build_list_from_json(__resolve_param_for_index(__kv, \"head\", 0), true, __json_to_int(__resolve_param(__kv, \"pos\")));"
       );
       continue;
     }
 
     if (problemSlug === "lowest-common-ancestor-of-a-binary-tree" && (name === "p" || name === "q")) {
       paramDecls.push(
-        `    TreeNode* __${name} = __find_tree_node_by_val(__root, __json_to_int(__resolve_param(__kv, \"${name}\")));`
+        `    TreeNode* __${name} = __find_tree_node_by_val(__root, __json_to_int(__resolve_param_for_index(__kv, \"${name}\", ${paramIndex})));`
       );
       continue;
     }
 
     paramDecls.push(
-      `    ${type} __${name} = __convert_param<${type}>(__resolve_param(__kv, \"${name}\"));`
+      `    ${type} __${name} = __convert_param<${type}>(__resolve_param_for_index(__kv, \"${name}\", ${paramIndex}));`
     );
   }
 
@@ -345,8 +345,76 @@ std::vector<std::string> __split_top_level(const std::string& text, char delimit
   return parts;
 }
 
+std::string __normalize_json_like(std::string text) {
+  text.erase(std::remove(text.begin(), text.end(), static_cast<char>(96)), text.end());
+  text = __trim(text);
+  if (!text.empty() && text.back() == ',') {
+    text = __trim(text.substr(0, text.size() - 1));
+  }
+  return text;
+}
+
+std::string __single_quote_json_to_double(const std::string& text) {
+  std::string converted;
+  converted.reserve(text.size() * 2);
+  bool in_single = false;
+  bool in_double = false;
+  bool escaping = false;
+
+  for (const char ch : text) {
+    if (escaping) {
+      converted.push_back(ch);
+      escaping = false;
+      continue;
+    }
+
+    if (ch == '\\\\') {
+      converted.push_back(ch);
+      escaping = true;
+      continue;
+    }
+
+    if (in_single) {
+      if (ch == 39) {
+        in_single = false;
+        converted.push_back(34);
+      } else if (ch == 34) {
+        converted.push_back('\\\\');
+        converted.push_back(34);
+      } else {
+        converted.push_back(ch);
+      }
+      continue;
+    }
+
+    if (in_double) {
+      if (ch == 34) {
+        in_double = false;
+      }
+      converted.push_back(ch);
+      continue;
+    }
+
+    if (ch == 39) {
+      in_single = true;
+      converted.push_back(34);
+      continue;
+    }
+
+    if (ch == 34) {
+      in_double = true;
+      converted.push_back(ch);
+      continue;
+    }
+
+    converted.push_back(ch);
+  }
+
+  return converted;
+}
+
 json __parse_value(const std::string& raw) {
-  const std::string trimmed = __trim(raw);
+  std::string trimmed = __normalize_json_like(__trim(raw));
   if (trimmed.empty()) {
     return nullptr;
   }
@@ -354,6 +422,16 @@ json __parse_value(const std::string& raw) {
   try {
     return json::parse(trimmed);
   } catch (...) {
+    if ((trimmed.front() == '[' && trimmed.back() == ']') || (trimmed.front() == '{' && trimmed.back() == '}')) {
+      try {
+        const std::string single_quote_converted = __single_quote_json_to_double(trimmed);
+        if (single_quote_converted != trimmed) {
+          return json::parse(single_quote_converted);
+        }
+      } catch (...) {
+      }
+    }
+
     if (trimmed == "true") return true;
     if (trimmed == "false") return false;
     if (trimmed == "null") return nullptr;
@@ -377,10 +455,19 @@ json __parse_value(const std::string& raw) {
 
 std::unordered_map<std::string, json> __parse_key_value_input(const std::string& text) {
   std::unordered_map<std::string, json> values;
+  int positional_count = 0;
 
   for (const std::string& token : __split_top_level(text, ',')) {
+    if (__trim(token).empty()) {
+      continue;
+    }
+
     const size_t pos = token.find('=');
     if (pos == std::string::npos) {
+      if (positional_count == 0) {
+        values["__pos0"] = __parse_value(token);
+      }
+      positional_count += 1;
       continue;
     }
 
@@ -391,6 +478,11 @@ std::unordered_map<std::string, json> __parse_key_value_input(const std::string&
     }
 
     values[key] = __parse_value(value);
+    if (key == "l1") {
+      values["list1"] = values[key];
+    } else if (key == "l2") {
+      values["list2"] = values[key];
+    }
   }
 
   return values;
@@ -691,6 +783,15 @@ T __convert_param(const json& value) {
 
   if constexpr (std::is_same_v<CleanT, int>) {
     return __json_to_int(value);
+  } else if constexpr (std::is_same_v<CleanT, char>) {
+    if (value.is_string()) {
+      const std::string text = value.get<std::string>();
+      return text.empty() ? '\\0' : text.front();
+    }
+    if (value.is_number_integer()) {
+      return static_cast<char>(value.get<int>());
+    }
+    return '\\0';
   } else if constexpr (std::is_same_v<CleanT, long long>) {
     if (value.is_number_integer()) return value.get<long long>();
     if (value.is_number_float()) return static_cast<long long>(value.get<double>());
@@ -776,7 +877,7 @@ json __to_json_value(ListNode* head) {
 
 json __to_json_value(TreeNode* root) {
   if (root == nullptr) {
-    return nullptr;
+    return json::array();
   }
 
   json values = json::array();
@@ -850,6 +951,22 @@ json __resolve_param(const std::unordered_map<std::string, json>& kv, const std:
     return nullptr;
   }
   return it->second;
+}
+
+json __resolve_param_for_index(const std::unordered_map<std::string, json>& kv, const std::string& key, const int param_index) {
+  const auto it = kv.find(key);
+  if (it != kv.end()) {
+    return it->second;
+  }
+
+  if (param_index == 0) {
+    const auto pos_it = kv.find("__pos0");
+    if (pos_it != kv.end()) {
+      return pos_it->second;
+    }
+  }
+
+  return nullptr;
 }
 
 json __arg_at(const json& args, const size_t index) {
@@ -1000,14 +1117,77 @@ def _split_top_level(text: str, delimiter: str = ",") -> list[str]:
     return parts
 
 
+def _normalize_json_like(value: str) -> str:
+    text = value.replace(chr(96), "").strip()
+    if text.endswith(","):
+        text = text[:-1].strip()
+    return text
+
+
+def _single_quote_json_to_double(text: str) -> str:
+    converted: list[str] = []
+    in_single = False
+    in_double = False
+    escaping = False
+
+    for ch in text:
+        if escaping:
+            converted.append(ch)
+            escaping = False
+            continue
+
+        if ch == "\\\\":
+            converted.append(ch)
+            escaping = True
+            continue
+
+        if in_single:
+            if ch == "'":
+                in_single = False
+                converted.append('"')
+            elif ch == '"':
+                converted.append('\\"')
+            else:
+                converted.append(ch)
+            continue
+
+        if in_double:
+            if ch == '"':
+                in_double = False
+            converted.append(ch)
+            continue
+
+        if ch == "'":
+            in_single = True
+            converted.append('"')
+            continue
+
+        if ch == '"':
+            in_double = True
+            converted.append(ch)
+            continue
+
+        converted.append(ch)
+
+    return "".join(converted)
+
+
 def _parse_value(raw: str):
-    value = raw.strip()
+    value = _normalize_json_like(raw.strip())
     if value == "":
         return None
 
     try:
         return json.loads(value)
     except Exception:
+        if (value.startswith("[") and value.endswith("]")) or (value.startswith("{") and value.endswith("}")):
+            try:
+                converted = _single_quote_json_to_double(value)
+                if converted != value:
+                    return json.loads(converted)
+            except Exception:
+                pass
+
         if value.lower() == "true":
             return True
         if value.lower() == "false":
@@ -1026,15 +1206,34 @@ def _parse_value(raw: str):
 
 def _parse_assignments(raw: str) -> dict[str, object]:
     result: dict[str, object] = {}
+    positional_count = 0
     for token in _split_top_level(raw, ","):
+        if token.strip() == "":
+            continue
         if "=" not in token:
+            if positional_count == 0:
+                result["__pos0"] = _parse_value(token)
+            positional_count += 1
             continue
         key, val = token.split("=", 1)
         key = key.strip()
         if not key:
             continue
-        result[key] = _parse_value(val)
+        parsed = _parse_value(val)
+        result[key] = parsed
+        if key == "l1":
+            result["list1"] = parsed
+        elif key == "l2":
+            result["list2"] = parsed
     return result
+
+
+def _resolve_param_raw(kv: dict[str, object], key: str, param_index: int):
+    if key in kv:
+        return kv[key]
+    if param_index == 0 and "__pos0" in kv:
+        return kv["__pos0"]
+    return None
 
 
 def _consume_json_array_span(text: str, start: int) -> tuple[int, int]:
@@ -1296,7 +1495,7 @@ def _list_index_of_node(head, target):
 
 def _tree_to_jsonable(root):
     if root is None:
-        return None
+        return []
 
     result = []
     queue = deque([root])
@@ -1378,9 +1577,10 @@ def _run_solution(meta):
     root_value = None
     head_value = None
 
-    for param in params:
+    for param_index, param in enumerate(params):
         name = param["name"]
         cpp_type = param["type"]
+        raw_value = _resolve_param_raw(kv, name, param_index)
 
         if slug == "intersection-of-two-linked-lists" and name == "headA":
             value = intersection_pair[0]
@@ -1388,12 +1588,12 @@ def _run_solution(meta):
             value = intersection_pair[1]
         elif slug in {"linked-list-cycle", "linked-list-cycle-ii"} and name == "head":
             pos = int(kv.get("pos", -1) or -1)
-            value = _build_list(kv.get("head", []), pos)
+            value = _build_list(raw_value if raw_value is not None else [], pos)
         elif slug == "lowest-common-ancestor-of-a-binary-tree" and name in {"p", "q"}:
-            target = int(kv.get(name, 0) or 0)
+            target = int(raw_value or 0)
             value = _find_tree_node(root_value, target)
         else:
-            value = _convert_value(cpp_type, kv.get(name))
+            value = _convert_value(cpp_type, raw_value)
 
         if name == "root":
             root_value = value
@@ -1427,6 +1627,12 @@ def _run_solution(meta):
         output = None if result is None else result.val
     elif slug == "lowest-common-ancestor-of-a-binary-tree":
         output = None if result is None else result.val
+    elif return_type == "ListNode*":
+        output = [] if result is None else _list_to_jsonable(result)
+    elif return_type == "TreeNode*":
+        output = [] if result is None else _tree_to_jsonable(result)
+    elif return_type == "Node*":
+        output = [] if result is None else _random_list_to_jsonable(result)
     else:
         output = _to_jsonable(result)
 

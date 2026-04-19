@@ -1,0 +1,17 @@
+{
+  "count": 3,
+  "items": [
+    {
+      "slug": "copy-list-with-random-pointer",
+      "stderr": "/var/folders/hq/1hlcytg537lbz3lfb5j_4drc0000gn/T/leetcodepro-judge-n03KfO/core_main.cpp:679:29: error: no member named 'copyRandomList' in 'Node'\n  679 |         auto __ret = __obj->copyRandomList(__arg0);\n      |                      ~~~~~~~^\n1 error generated."
+    },
+    {
+      "slug": "number-of-islands",
+      "stderr": "/var/folders/hq/1hlcytg537lbz3lfb5j_4drc0000gn/T/leetcodepro-judge-ycuvQW/core_main.cpp:510:19: error: static assertion failed due to requirement '!sizeof(char *)': Unsupported parameter type in core wrapper\n  510 |     static_assert(!sizeof(CleanT*), \"Unsupported parameter type in core wrapper\");\n      |                   ^~~~~~~~~~~~~~~~\n/var/folders/hq/1hlcytg537lbz3lfb5j_4drc0000gn/T/leetcodepro-judge-ycuvQW/core_main.cpp:500:24: note: in instantiation of function template specialization '__convert_param<char>' requested here\n  500 |       result.push_back(__convert_param<Item>(item));\n      |                        ^\n/var/folders/hq/1hlcytg537lbz3lfb5j_4drc0000gn/T/leetcodepro-judge-ycuvQW/core_main.cpp:500:24: note: in instantiation of function template specialization '__convert_param<std::vector<char>>' requested here\n/var/folders/hq/1hlcytg537lbz3lfb5j_4drc0000gn/T/leetcodepro-judge-ycuvQW/core_main.cpp:656:35: note: in instantiation of function template specialization '__convert_param<std::vector<std::vector<char>>>' requested here\n  656 |     vector<vector<char>> __grid = __convert_param<vector<vector<char>>>(__resolve_param(__kv, \"grid\"));\n      |                                   ^\n1 error generated."
+    },
+    {
+      "slug": "word-search",
+      "stderr": "/var/folders/hq/1hlcytg537lbz3lfb5j_4drc0000gn/T/leetcodepro-judge-In9kji/core_main.cpp:510:19: error: static assertion failed due to requirement '!sizeof(char *)': Unsupported parameter type in core wrapper\n  510 |     static_assert(!sizeof(CleanT*), \"Unsupported parameter type in core wrapper\");\n      |                   ^~~~~~~~~~~~~~~~\n/var/folders/hq/1hlcytg537lbz3lfb5j_4drc0000gn/T/leetcodepro-judge-In9kji/core_main.cpp:500:24: note: in instantiation of function template specialization '__convert_param<char>' requested here\n  500 |       result.push_back(__convert_param<Item>(item));\n      |                        ^\n/var/folders/hq/1hlcytg537lbz3lfb5j_4drc0000gn/T/leetcodepro-judge-In9kji/core_main.cpp:500:24: note: in instantiation of function template specialization '__convert_param<std::vector<char>>' requested here\n/var/folders/hq/1hlcytg537lbz3lfb5j_4drc0000gn/T/leetcodepro-judge-In9kji/core_main.cpp:656:36: note: in instantiation of function template specialization '__convert_param<std::vector<std::vector<char>>>' requested here\n  656 |     vector<vector<char>> __board = __convert_param<vector<vector<char>>>(__resolve_param(__kv, \"board\"));\n      |                                    ^\n1 error generated."
+    }
+  ]
+}

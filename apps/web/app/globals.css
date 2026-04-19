@@ -31,6 +31,12 @@
   --lc-nav-link-hover: #2f3442;
   --lc-focus-ring: rgba(255, 161, 22, 0.55);
   --lc-code-editor-border: #353a49;
+  --lc-nav-height: 3.5rem;
+  --lc-shell-max-width: 1720px;
+  --lc-shell-gutter-inline: 0.75rem;
+  --lc-shell-gutter-block: 1.25rem;
+  --lc-page-max-width: 1320px;
+  --lc-page-wide-max-width: 1600px;
 
   --lc-btn-primary-bg: #ffa116;
   --lc-btn-primary-border: #cc840f;
@@ -82,6 +88,25 @@
   --lc-btn-info-text: #285eb9;
 }
 
+@media (min-width: 768px) {
+  :root {
+    --lc-shell-gutter-inline: 1.25rem;
+    --lc-shell-gutter-block: 1.5rem;
+  }
+}
+
+@media (min-width: 1280px) {
+  :root {
+    --lc-shell-gutter-inline: 2rem;
+    --lc-shell-gutter-block: 1.75rem;
+  }
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
 body {
   margin: 0;
   background:
@@ -101,21 +126,74 @@ a {
   border-color: var(--lc-border);
 }
 
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
 *::-webkit-scrollbar {
-  width: 9px;
-  height: 9px;
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 *::-webkit-scrollbar-track {
-  background: color-mix(in oklab, var(--lc-page-bg) 75%, transparent);
+  background: transparent;
 }
 
 *::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: color-mix(in oklab, var(--lc-text-muted) 55%, transparent);
+  background: transparent;
 }
 
 @layer components {
+  .lc-app {
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .lc-shell {
+    width: min(100%, var(--lc-shell-max-width));
+    margin: 0 auto;
+    padding-inline: var(--lc-shell-gutter-inline);
+    padding-block: var(--lc-shell-gutter-block);
+  }
+
+  .lc-page {
+    width: min(100%, var(--lc-page-max-width));
+    margin: 0 auto;
+  }
+
+  .lc-page-wide {
+    width: min(100%, var(--lc-page-wide-max-width));
+    margin: 0 auto;
+  }
+
+  .lc-page-section {
+    @apply flex flex-col gap-4 md:gap-5;
+  }
+
+  .lc-page-header {
+    @apply flex flex-col gap-2;
+  }
+
+  .lc-page-header-kicker {
+    @apply text-xs font-medium uppercase tracking-[0.18em];
+    color: var(--lc-accent);
+  }
+
+  .lc-workbench-page {
+    width: calc(100vw - (var(--lc-shell-gutter-inline) * 2));
+    margin-inline: calc(50% - 50vw + var(--lc-shell-gutter-inline));
+  }
+
+  @media (min-width: 1024px) {
+    .lc-workbench-page {
+      height: calc(100dvh - var(--lc-nav-height) - (var(--lc-shell-gutter-block) * 2));
+      min-height: 680px;
+    }
+  }
+
   .lc-card {
     @apply rounded-xl border bg-[var(--lc-surface)];
     box-shadow: var(--lc-shadow);
@@ -127,6 +205,17 @@ a {
 
   .lc-muted {
     @apply text-[var(--lc-text-muted)];
+  }
+
+  .lc-scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .lc-scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 
   .lc-select {
@@ -304,5 +393,48 @@ a {
   .lc-markdown th {
     @apply font-semibold;
     background: color-mix(in oklab, var(--lc-surface-soft) 86%, transparent);
+  }
+
+  .lc-ai-markdown > :first-child {
+    margin-top: 0;
+  }
+
+  .lc-ai-markdown > :last-child {
+    margin-bottom: 0;
+  }
+
+  .lc-ai-markdown p,
+  .lc-ai-markdown ul,
+  .lc-ai-markdown ol,
+  .lc-ai-markdown blockquote {
+    line-height: 1.82;
+  }
+
+  .lc-ai-markdown code {
+    border-color: color-mix(in oklab, var(--lc-border-soft) 82%, transparent);
+    background: color-mix(in oklab, var(--lc-surface-soft) 88%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--lc-border-soft) 20%, transparent);
+  }
+
+  .lc-ai-markdown pre {
+    margin-top: 0.85rem;
+    border-radius: 1rem;
+    padding: 1rem;
+    background: color-mix(in oklab, var(--lc-surface) 82%, black 18%);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--lc-border-soft) 55%, transparent);
+  }
+
+  .lc-ai-markdown blockquote {
+    border-left-width: 3px;
+    border-left-color: color-mix(in oklab, var(--lc-accent) 45%, var(--lc-border-soft));
+    background: color-mix(in oklab, var(--lc-accent-soft) 45%, transparent);
+    padding-block: 0.55rem;
+    padding-right: 0.85rem;
+    border-radius: 0 0.9rem 0.9rem 0;
+  }
+
+  .lc-ai-markdown table {
+    border-radius: 1rem;
+    overflow: hidden;
   }
 }

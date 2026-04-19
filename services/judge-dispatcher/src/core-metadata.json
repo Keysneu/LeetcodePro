@@ -544,19 +544,9 @@
     ]
   },
   "copy-list-with-random-pointer": {
-    "className": "Node",
-    "kind": "design",
+    "className": "Solution",
+    "kind": "solution",
     "methods": [
-      {
-        "name": "Node",
-        "returnType": null,
-        "params": [
-          {
-            "type": "int",
-            "name": "_val"
-          }
-        ]
-      },
       {
         "name": "copyRandomList",
         "returnType": "Node*",

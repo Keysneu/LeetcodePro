@@ -1,0 +1,2008 @@
+{
+  "generatedAt": "2026-04-18T08:08:20.414Z",
+  "totalProblems": 100,
+  "issueCount": 0,
+  "issues": [],
+  "results": [
+    {
+      "slug": "two-sum",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "group-anagrams",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "longest-consecutive-sequence",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "move-zeroes",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "container-with-most-water",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "3sum",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "trapping-rain-water",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "longest-substring-without-repeating-characters",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "find-all-anagrams-in-a-string",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "subarray-sum-equals-k",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "sliding-window-maximum",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "minimum-window-substring",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "maximum-subarray",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "merge-intervals",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "rotate-array",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "product-of-array-except-self",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "first-missing-positive",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "set-matrix-zeroes",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "spiral-matrix",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "rotate-image",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "search-a-2d-matrix-ii",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "intersection-of-two-linked-lists",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "reverse-linked-list",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "palindrome-linked-list",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "linked-list-cycle",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "linked-list-cycle-ii",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "merge-two-sorted-lists",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "add-two-numbers",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "remove-nth-node-from-end-of-list",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "swap-nodes-in-pairs",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "reverse-nodes-in-k-group",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "copy-list-with-random-pointer",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "sort-list",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "merge-k-sorted-lists",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "lru-cache",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "binary-tree-inorder-traversal",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "maximum-depth-of-binary-tree",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "invert-binary-tree",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "symmetric-tree",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "diameter-of-binary-tree",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "binary-tree-level-order-traversal",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "convert-sorted-array-to-binary-search-tree",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "validate-binary-search-tree",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "kth-smallest-element-in-a-bst",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "binary-tree-right-side-view",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "flatten-binary-tree-to-linked-list",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "construct-binary-tree-from-preorder-and-inorder-traversal",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "path-sum-iii",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "lowest-common-ancestor-of-a-binary-tree",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "binary-tree-maximum-path-sum",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "number-of-islands",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "rotting-oranges",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "course-schedule",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "implement-trie-prefix-tree",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "permutations",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "subsets",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "letter-combinations-of-a-phone-number",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "combination-sum",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "generate-parentheses",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "word-search",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "palindrome-partitioning",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "n-queens",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "search-insert-position",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "search-a-2d-matrix",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "find-first-and-last-position-of-element-in-sorted-array",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "search-in-rotated-sorted-array",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "find-minimum-in-rotated-sorted-array",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "median-of-two-sorted-arrays",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "valid-parentheses",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "min-stack",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "decode-string",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "daily-temperatures",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "largest-rectangle-in-histogram",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "kth-largest-element-in-an-array",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "top-k-frequent-elements",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "find-median-from-data-stream",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "best-time-to-buy-and-sell-stock",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "jump-game",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "jump-game-ii",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "partition-labels",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "climbing-stairs",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "pascals-triangle",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "house-robber",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "perfect-squares",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "coin-change",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "word-break",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "longest-increasing-subsequence",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "maximum-product-subarray",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "partition-equal-subset-sum",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "longest-valid-parentheses",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "unique-paths",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "minimum-path-sum",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "longest-palindromic-substring",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "longest-common-subsequence",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "edit-distance",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "single-number",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "majority-element",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "sort-colors",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "next-permutation",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    },
+    {
+      "slug": "find-the-duplicate-number",
+      "checks": [
+        {
+          "mode": "acm",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "python",
+          "status": "WA"
+        },
+        {
+          "mode": "core",
+          "language": "cpp",
+          "status": "WA"
+        }
+      ]
+    }
+  ]
+}

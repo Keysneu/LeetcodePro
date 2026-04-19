@@ -15,13 +15,13 @@ export default function TopNav() {
 
   return (
     <header className="sticky top-0 z-40 border-b backdrop-blur" style={{ background: "var(--lc-nav-bg)" }}>
-      <nav className="flex h-14 w-full items-center justify-between px-3 md:px-5 xl:px-8 2xl:px-10">
-        <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2">
+      <nav className="mx-auto flex h-[var(--lc-nav-height)] w-full max-w-[var(--lc-shell-max-width)] items-center justify-between gap-3 px-[var(--lc-shell-gutter-inline)]">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-6">
+          <Link href="/" className="flex shrink-0 items-center gap-2">
             <span className="inline-block h-5 w-5 rounded-sm bg-[var(--lc-accent)]" />
             <span className="text-base font-semibold tracking-tight text-[var(--lc-text)]">LeetCodePro</span>
           </Link>
-          <div className="flex items-center gap-1">
+          <div className="hidden min-w-0 items-center gap-1 sm:flex">
             {navItems.map((item) => {
               const active = pathname.startsWith(item.href);
               return (
@@ -42,7 +42,7 @@ export default function TopNav() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex shrink-0 items-center gap-2 text-xs">
           <ThemeToggle />
           <span className="hidden rounded border bg-[var(--lc-surface-soft)] px-2 py-1 text-[var(--lc-text-muted)] sm:inline-flex">
             MVP
@@ -52,6 +52,25 @@ export default function TopNav() {
           </span>
         </div>
       </nav>
+      <div className="mx-auto flex w-full max-w-[var(--lc-shell-max-width)] gap-1 overflow-x-auto px-[var(--lc-shell-gutter-inline)] pb-2 sm:hidden">
+        {navItems.map((item) => {
+          const active = pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition ${
+                active
+                  ? "text-[var(--lc-accent)]"
+                  : "text-[var(--lc-text-muted)] hover:bg-[var(--lc-nav-link-hover)] hover:text-[var(--lc-text)]"
+              }`}
+              style={active ? { background: "var(--lc-accent-soft)" } : undefined}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
+      </div>
     </header>
   );
 }
