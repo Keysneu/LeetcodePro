@@ -476,7 +476,8 @@ export async function updateUserAiDefaults(userId: string, input: UpdateDefaults
 export async function resolveAiRuntimeConfigForRequest(
   userId: string,
   requestType: AiRequestType,
-  aiConfigId?: string | null
+  aiConfigId?: string | null,
+  hasExplicitProvider = false
 ): Promise<ResolveAiRuntimeConfigResult> {
   if (aiConfigId && aiConfigId.trim().length > 0) {
     const config = await loadAiConfigById(userId, aiConfigId);
@@ -499,6 +500,10 @@ export async function resolveAiRuntimeConfigForRequest(
         message: "AI 配置解密失败，请检查服务端 AI_CONFIG_ENCRYPTION_KEY 配置。"
       };
     }
+  }
+
+  if (hasExplicitProvider) {
+    return { kind: "none" };
   }
 
   const defaults = await loadAiDefaults(userId);

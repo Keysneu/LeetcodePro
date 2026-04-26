@@ -59,7 +59,7 @@ type Props = {
 };
 
 const TERMINAL_STATUSES = new Set<SubmissionStatus>(["AC", "WA", "TLE", "RE", "CE"]);
-const WORKSPACE_VERTICAL_STORAGE_KEY = "leetcodepro-workspace-vertical-ratio-v5";
+const WORKSPACE_VERTICAL_STORAGE_KEY = "leetcodepro-workspace-vertical-ratio-v6";
 const RESULT_PANEL_COLLAPSED_STORAGE_KEY = "leetcodepro-workspace-result-collapsed";
 type AnalysisTab = "cases" | "results";
 
@@ -492,19 +492,16 @@ export default function ProblemWorkspace({
       <ProblemResizableLayout
         direction="vertical"
         storageKey={WORKSPACE_VERTICAL_STORAGE_KEY}
-        defaultRatio={0.72}
-        minPrimaryPx={320}
-        minSecondaryPx={200}
-        minRatio={0.45}
+        defaultRatio={0.62}
+        minPrimaryPx={260}
+        minSecondaryPx={150}
+        minRatio={0.36}
         maxRatio={0.84}
         dividerAriaLabel="拖拽调整代码区与运行分析区域高度"
         className="min-h-0 flex-1"
       >
-        <div className="lc-card flex h-full min-h-[430px] flex-col overflow-hidden lg:min-h-0">
-          <div className="flex items-center justify-between gap-3 border-b bg-[var(--lc-surface-soft)] px-4 py-3">
-            <p className="text-sm font-semibold text-[var(--lc-text)]">代码工作区</p>
-          </div>
-          <div className="min-h-0 flex-1 p-3 lg:p-4">
+        <div className="lc-card flex h-full min-h-[360px] flex-col overflow-hidden lg:min-h-0">
+          <div className="min-h-0 flex-1 p-2.5 lg:p-3">
             <CodeEditor
               initialCoreCodes={initialCoreCodes}
               initialMode="core"
@@ -518,13 +515,13 @@ export default function ProblemWorkspace({
 
         <div
           data-testid="workspace-analysis-card"
-          className="lc-card flex h-full min-h-[260px] flex-col overflow-hidden p-3 lg:min-h-0 lg:p-4"
+          className="lc-card flex h-full min-h-[180px] flex-col overflow-hidden p-2.5 lg:min-h-0 lg:p-3"
         >
-          <div className="flex items-center justify-between gap-3 rounded-xl border bg-[var(--lc-surface-soft)]/72 px-3 py-2">
+          <div className="flex items-center justify-between gap-2 rounded-[12px] border bg-[var(--lc-surface-soft)]/72 px-2.5 py-1.5">
             <WorkspaceAnalysisTabs activeTab={activeAnalysisTab} onChange={setActiveAnalysisTab} />
             <button
               type="button"
-              className="lc-btn-secondary h-7 shrink-0 px-2.5 text-xs"
+              className="lc-btn-secondary h-7 shrink-0 px-2.5 text-[11px]"
               onClick={() => setIsResultPanelCollapsed((previous) => !previous)}
             >
               {isResultPanelCollapsed ? "展开" : "收起"}
@@ -532,7 +529,7 @@ export default function ProblemWorkspace({
           </div>
           <div
             data-testid="workspace-result-panel"
-            className="mt-3 flex min-h-0 flex-1 flex-col rounded-xl border bg-[var(--lc-surface)] p-3 text-sm text-[var(--lc-text)]"
+            className="mt-2 flex min-h-0 flex-1 flex-col rounded-[12px] border bg-[var(--lc-surface)] p-2.5 text-sm text-[var(--lc-text)]"
           >
             {!isResultPanelCollapsed ? (
               <div className="lc-scrollbar-hidden min-h-0 flex-1 overflow-y-auto pr-1 lg:max-h-none">
@@ -547,26 +544,26 @@ export default function ProblemWorkspace({
                 ) : latestResultSource === "run-tests" && runTestResult ? (
                   <WorkspaceTestRunResultPanel result={runTestResult} errorMessage={runTestError} />
                 ) : submission ? (
-                  <div className="space-y-3">
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                      <span className="rounded border border-[var(--lc-border)] bg-[var(--lc-surface-soft)] px-2 py-0.5 font-semibold text-[var(--lc-text)]">
+                  <div className="space-y-2.5">
+                    <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                      <span className="rounded-[10px] border border-[var(--lc-border)] bg-[var(--lc-surface-soft)] px-2 py-0.5 font-semibold text-[var(--lc-text)]">
                         提交结果
                       </span>
-                      <span className={`rounded border px-2 py-0.5 font-semibold ${statusClass(submission.status)}`}>{submission.status}</span>
-                      <span className="rounded border bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[var(--lc-text-muted)]">
+                      <span className={`rounded-[10px] border px-2 py-0.5 font-semibold ${statusClass(submission.status)}`}>{submission.status}</span>
+                      <span className="rounded-[10px] border bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[var(--lc-text-muted)]">
                         运行时间 {submission.runtimeMs ?? "-"} ms
                       </span>
-                      <span className="rounded border bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[var(--lc-text-muted)]">
+                      <span className="rounded-[10px] border bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[var(--lc-text-muted)]">
                         内存 {submission.memoryKb ?? "-"} KB
                       </span>
-                      <span className="rounded border bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[var(--lc-text-muted)]">
+                      <span className="rounded-[10px] border bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[var(--lc-text-muted)]">
                         通过 {submission.passedCount ?? "-"} / {submission.totalCount ?? "-"}
                       </span>
                     </div>
                     {submission.errorMessage ? (
                       <div className="space-y-1">
-                        <p className="text-[var(--lc-danger)]">错误信息：</p>
-                        <pre className="max-h-[260px] overflow-auto whitespace-pre-wrap break-all rounded border border-[var(--lc-border)] bg-[var(--lc-surface-soft)] p-2 text-xs text-[var(--lc-danger)]">
+                        <p className="text-xs font-medium text-[var(--lc-danger)]">错误信息：</p>
+                        <pre className="max-h-[240px] overflow-auto whitespace-pre-wrap break-all rounded-[12px] border border-[var(--lc-border)] bg-[var(--lc-surface-soft)] p-2 text-[11px] leading-5 text-[var(--lc-danger)]">
                           {submission.errorMessage}
                         </pre>
                       </div>
@@ -575,11 +572,11 @@ export default function ProblemWorkspace({
                     {submitError ? <p className="mt-2 text-[var(--lc-danger)]">{submitError}</p> : null}
                   </div>
                 ) : latestResultSource === "run-tests" && runTestError ? (
-                  <div className="flex h-full min-h-[180px] items-center justify-center rounded-xl border border-dashed border-[var(--lc-border)] px-4 text-center text-sm font-medium text-[var(--lc-danger)]">
+                  <div className="flex h-full min-h-[150px] items-center justify-center rounded-[12px] border border-dashed border-[var(--lc-border)] px-4 text-center text-sm font-medium text-[var(--lc-danger)]">
                     {runTestError}
                   </div>
                 ) : (
-                  <div className="flex h-full min-h-[180px] items-center justify-center rounded-xl border border-dashed border-[var(--lc-border)] text-base font-medium text-[var(--lc-text-muted)]">
+                  <div className="flex h-full min-h-[150px] items-center justify-center rounded-[12px] border border-dashed border-[var(--lc-border)] text-sm font-medium text-[var(--lc-text-muted)]">
                     请先运行测试或提交代码
                   </div>
                 )}

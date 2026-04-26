@@ -1,6 +1,6 @@
-export type AiProvider = "vllm" | "minimax";
+export type AiProvider = "vllm" | "minimax" | "deepseek";
 
-const SUPPORTED_AI_PROVIDERS = new Set<AiProvider>(["vllm", "minimax"]);
+const SUPPORTED_AI_PROVIDERS = new Set<AiProvider>(["vllm", "minimax", "deepseek"]);
 
 export function normalizeAiProvider(value: unknown): AiProvider | null {
   if (typeof value !== "string") {

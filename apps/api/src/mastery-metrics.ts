@@ -37,6 +37,8 @@ export type MasteryTrack = {
 export type MasterySummary = {
   overallStatus: MasterySummaryStatus;
   isSolved: boolean;
+  solvedModes: CodeMode[];
+  isSingleModeSolved: boolean;
   totalAttempts: number;
   latestStatus: SubmissionStatus | null;
   dueModes: CodeMode[];
@@ -164,13 +166,13 @@ type DerivedTrackStats = {
 
 function deriveTrackStats(submissions: MasterySubmissionRow[], now: Date): DerivedTrackStats {
   const sorted = [...submissions].sort(compareSubmissionOrder);
-  const latestStatus = sorted.length > 0 ? sorted[sorted.length - 1].status : null;
   const recentThresholdTs = now.getTime() - RECENT_WINDOW_DAYS * DAY_MS;
 
   let totalAttempts = 0;
   let totalAcCount = 0;
   let consecutiveAc = 0;
   let lastAcAt: string | null = null;
+  let latestStatus: SubmissionStatus | null = null;
 
   for (const submission of sorted) {
     if (!isAttemptStatus(submission.status)) {
@@ -178,6 +180,7 @@ function deriveTrackStats(submissions: MasterySubmissionRow[], now: Date): Deriv
     }
 
     totalAttempts += 1;
+    latestStatus = submission.status;
     if (submission.status === "AC") {
       totalAcCount += 1;
       consecutiveAc += 1;
@@ -278,7 +281,7 @@ export function buildProblemMastery(
       status,
       totalAttempts: derived.totalAttempts,
       latestStatus: derived.latestStatus,
-      isSolved: derived.totalAcCount > 0,
+      isSolved: derived.latestStatus === "AC",
       totalAcCount: derived.totalAcCount,
       consecutiveAc: derived.consecutiveAc,
       recentConsecutiveAc: derived.recentConsecutiveAc,
@@ -314,11 +317,12 @@ export function buildProblemMastery(
   }, null);
 
   const latestSupportedSubmission = cppSubmissions
-    .filter((item) => isTrackSupported(modeSupport, item.mode))
+    .filter((item) => isTrackSupported(modeSupport, item.mode) && isAttemptStatus(item.status))
     .sort(compareSubmissionOrder)
     .at(-1);
 
   const dueTracks = supportedTracks.filter((track) => track.status === "REVIEW_DUE");
+  const solvedTracks = supportedTracks.filter((track) => track.isSolved);
   const earliestNextReviewTs = supportedTracks
     .map((track) => (track.nextReviewAt ? toTimestamp(track.nextReviewAt) : null))
     .filter((value): value is number => value !== null)
@@ -336,7 +340,9 @@ export function buildProblemMastery(
   return {
     summary: {
       overallStatus: weakestTrack ? (weakestTrack.status as MasterySummaryStatus) : "UNTOUCHED",
-      isSolved: supportedTracks.length > 0 && supportedTracks.every((track) => track.isSolved),
+      isSolved: solvedTracks.length > 0,
+      solvedModes: solvedTracks.map((track) => track.mode),
+      isSingleModeSolved: solvedTracks.length === 1 && supportedTracks.length > 1,
       totalAttempts: supportedTracks.reduce((sum, track) => sum + track.totalAttempts, 0),
       latestStatus: latestSupportedSubmission?.status ?? null,
       dueModes: dueTracks.map((track) => track.mode),

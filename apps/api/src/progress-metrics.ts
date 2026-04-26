@@ -69,6 +69,7 @@ export type ProgressOverview = {
 const DEFAULT_WINDOW_DAYS = 90;
 const DEFAULT_TOP_TAG_COUNT = 8;
 const DEFAULT_DUE_REVIEW_LIMIT = 10;
+const STALE_DUE_REVIEW_HIDE_DAYS = 10;
 
 function toDateKeyInTimeZone(date: Date, timeZone: string): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -266,7 +267,11 @@ export function buildProgressOverview(options: BuildProgressOptions): ProgressOv
     if (mastery.summary.overallStatus === "MASTERED") {
       masteredProblems += 1;
     }
-    if (mastery.summary.dueModes.length > 0 && mastery.summary.overdueDays !== null) {
+    if (
+      mastery.summary.dueModes.length > 0 &&
+      mastery.summary.overdueDays !== null &&
+      mastery.summary.overdueDays < STALE_DUE_REVIEW_HIDE_DAYS
+    ) {
       dueReviewProblems += 1;
       dueReviewItems.push({
         problemId: problem.id,
@@ -340,7 +345,7 @@ export function buildProgressOverview(options: BuildProgressOptions): ProgressOv
         }
       },
       dueReviewItems: dueReviewItems.slice(0, Math.max(0, dueReviewLimit)),
-      note: "掌握度仅统计 C++ 提交"
+      note: "掌握度仅统计 C++ 提交；待复习暂只展示逾期小于 10 天的记录"
     }
   };
 }

@@ -19,13 +19,13 @@ type Props = {
 };
 
 const HORIZONTAL_STORAGE_KEY = "leetcodepro-problem-layout-left-ratio";
-const HORIZONTAL_DEFAULT_RATIO = 0.4;
-const HORIZONTAL_MIN_PRIMARY_PX = 340;
-const HORIZONTAL_MIN_SECONDARY_PX = 520;
-const HORIZONTAL_MIN_RATIO = 0.28;
-const HORIZONTAL_MAX_RATIO = 0.72;
+const HORIZONTAL_DEFAULT_RATIO = 0.46;
+const HORIZONTAL_MIN_PRIMARY_PX = 320;
+const HORIZONTAL_MIN_SECONDARY_PX = 500;
+const HORIZONTAL_MIN_RATIO = 0.3;
+const HORIZONTAL_MAX_RATIO = 0.68;
 const DEFAULT_DESKTOP_MEDIA_QUERY = "(min-width: 1024px)";
-const SPLITTER_GAP_PX = 12;
+const SPLITTER_GAP_PX = 8;
 
 function cx(...parts: Array<string | undefined>): string {
   return parts.filter(Boolean).join(" ");
@@ -73,11 +73,11 @@ export default function ProblemResizableLayout({
   secondaryPaneClassName
 }: Props) {
   const resolvedStorageKey = storageKey ?? (direction === "horizontal" ? HORIZONTAL_STORAGE_KEY : "leetcodepro-problem-layout-top-ratio");
-  const resolvedDefaultRatio = defaultRatio ?? (direction === "horizontal" ? HORIZONTAL_DEFAULT_RATIO : 0.5);
-  const resolvedMinPrimaryPx = minPrimaryPx ?? (direction === "horizontal" ? HORIZONTAL_MIN_PRIMARY_PX : 220);
-  const resolvedMinSecondaryPx = minSecondaryPx ?? (direction === "horizontal" ? HORIZONTAL_MIN_SECONDARY_PX : 220);
-  const resolvedMinRatio = minRatio ?? (direction === "horizontal" ? HORIZONTAL_MIN_RATIO : 0.2);
-  const resolvedMaxRatio = maxRatio ?? (direction === "horizontal" ? HORIZONTAL_MAX_RATIO : 0.8);
+  const resolvedDefaultRatio = defaultRatio ?? (direction === "horizontal" ? HORIZONTAL_DEFAULT_RATIO : 0.62);
+  const resolvedMinPrimaryPx = minPrimaryPx ?? (direction === "horizontal" ? HORIZONTAL_MIN_PRIMARY_PX : 260);
+  const resolvedMinSecondaryPx = minSecondaryPx ?? (direction === "horizontal" ? HORIZONTAL_MIN_SECONDARY_PX : 160);
+  const resolvedMinRatio = minRatio ?? (direction === "horizontal" ? HORIZONTAL_MIN_RATIO : 0.3);
+  const resolvedMaxRatio = maxRatio ?? (direction === "horizontal" ? HORIZONTAL_MAX_RATIO : 0.82);
   const panels = Children.toArray(children);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -299,8 +299,8 @@ export default function ProblemResizableLayout({
     dividerAriaLabel ?? (direction === "horizontal" ? "拖拽调整左右区域宽度" : "拖拽调整上下区域高度");
   const containerClassName =
     direction === "horizontal"
-      ? "flex h-full min-h-0 flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-3"
-      : "flex min-h-0 flex-col gap-3 lg:h-full";
+      ? "flex h-full min-h-0 flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-2"
+      : "flex min-h-0 flex-col gap-2 lg:h-full";
 
   return (
     <div ref={containerRef} className={cx(containerClassName, className)}>
@@ -321,7 +321,7 @@ export default function ProblemResizableLayout({
             aria-label={resolvedDividerAriaLabel}
             className={cx(
               "group relative border bg-[var(--lc-surface-soft)] transition hover:bg-[var(--lc-accent-soft)] focus:outline-none",
-              direction === "horizontal" ? "w-2 cursor-col-resize rounded-full" : "h-2 w-full cursor-row-resize rounded-full",
+              direction === "horizontal" ? "w-1.5 cursor-col-resize rounded-full" : "h-1.5 w-full cursor-row-resize rounded-full",
               isDragging && direction === "vertical" ? "border-[var(--lc-accent)] bg-[var(--lc-accent-soft)]" : undefined
             )}
             onPointerDown={handleDragStart}
@@ -331,7 +331,7 @@ export default function ProblemResizableLayout({
             <span
               className={cx(
                 "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full transition",
-                direction === "horizontal" ? "h-20 w-[2px]" : "h-[2px] w-10",
+                direction === "horizontal" ? "h-16 w-[2px]" : "h-[2px] w-8",
                 isDragging ? "bg-[var(--lc-accent)]" : "bg-[var(--lc-border-soft)] group-hover:bg-[var(--lc-accent)]"
               )}
             />

@@ -1,6 +1,20 @@
+import "./load-project-env";
 import { NestFactory } from "@nestjs/core";
+import { resolveAiConfigEncryptionKey } from "./ai-config-crypto";
 import { AppModule } from "./app.module";
 import { closeDbPool } from "./db";
+
+function logAiConfigEncryptionKeyStatus(): void {
+  try {
+    resolveAiConfigEncryptionKey();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown error";
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[AI Config] ${message}. Saving custom AI configs is disabled until AI_CONFIG_ENCRYPTION_KEY is configured in the project root .env.`
+    );
+  }
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
@@ -23,6 +37,7 @@ async function bootstrap() {
     origin: corsOrigin
   });
   app.enableShutdownHooks();
+  logAiConfigEncryptionKeyStatus();
 
   await app.listen(port);
 

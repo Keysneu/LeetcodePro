@@ -1,7 +1,7 @@
 import * as assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { decryptAiConfigSecret, encryptAiConfigSecret } from "./ai-config-crypto";
+import { decryptAiConfigSecret, encryptAiConfigSecret, resolveAiConfigEncryptionKey } from "./ai-config-crypto";
 
 const KEY = Buffer.from("12345678901234567890123456789012", "utf8");
 const OTHER_KEY = Buffer.from("abcdefghijklmnopqrstuvwxzy123456", "utf8");
@@ -27,4 +27,38 @@ test("decryptAiConfigSecret fails when ciphertext is tampered", () => {
   assert.throws(() => {
     decryptAiConfigSecret(tampered, KEY);
   });
+});
+
+test("resolveAiConfigEncryptionKey throws when env is missing", () => {
+  const previous = process.env.AI_CONFIG_ENCRYPTION_KEY;
+  delete process.env.AI_CONFIG_ENCRYPTION_KEY;
+
+  try {
+    assert.throws(() => {
+      resolveAiConfigEncryptionKey();
+    }, /AI_CONFIG_ENCRYPTION_KEY is missing/);
+  } finally {
+    if (previous === undefined) {
+      delete process.env.AI_CONFIG_ENCRYPTION_KEY;
+    } else {
+      process.env.AI_CONFIG_ENCRYPTION_KEY = previous;
+    }
+  }
+});
+
+test("resolveAiConfigEncryptionKey accepts 32-byte utf8 env value", () => {
+  const previous = process.env.AI_CONFIG_ENCRYPTION_KEY;
+  process.env.AI_CONFIG_ENCRYPTION_KEY = "leetcodepro-dev-ai-config-key!!!";
+
+  try {
+    const key = resolveAiConfigEncryptionKey();
+    assert.equal(key.length, 32);
+    assert.equal(key.toString("utf8"), "leetcodepro-dev-ai-config-key!!!");
+  } finally {
+    if (previous === undefined) {
+      delete process.env.AI_CONFIG_ENCRYPTION_KEY;
+    } else {
+      process.env.AI_CONFIG_ENCRYPTION_KEY = previous;
+    }
+  }
 });

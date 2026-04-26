@@ -1,6 +1,6 @@
 # LeetCodePro（MVP 第一阶段）运行与验证指南
 
-更新时间：2026-04-19（Asia/Shanghai）
+更新时间：2026-04-26（Asia/Shanghai）
 
 ## 1. 说明（请先看）
 
@@ -21,6 +21,7 @@
 - 判题错误输出默认完整保留并在前端滚动展示（`JUDGE_MAX_OUTPUT_LENGTH` 默认 `1048576`）
 - 题库与题面展示已支持中文样式：题库列表与题目详情默认展示中文题名与中文描述
 - 核心模式模板已升级为 Hot100 全量官方函数签名模板（C++/Python）
+- 题目页编辑器工具栏已新增图标化 `还原模板`：仅作用于当前模式与语言，支持一键恢复默认起步代码
 - 前端题目页已打通真实交互：支持题目列表 API 拉取、题面详情展示、提交判题、结果轮询、AI **SSE 流式点评**
 - 首页新增“我的 AI 配置中心”：支持 OpenAI 兼容配置的新增/编辑/删除，并可分别设置 `AI判题` / `AI题解` 默认配置
 - 前端展示已完成一轮 LeetCode 风格重构：统一深色 token、顶栏导航、题库表格化题单、题面/编辑区卡片层级、按钮与状态标签样式
@@ -29,7 +30,7 @@
 - 题库页展示已优化为“按题型分组 + 组内难度排序”，并将原“题目标识”列替换为“知识点”标签组件（显示该题全部标签）
 - 题库页已支持 URL 驱动模糊搜索：`/problems?q=关键词` 可按题号、题名、slug、标签进行大小写无关的部分匹配，刷新后保留搜索状态
 - 已支持夜间/白天主题切换（右上角按钮），并持久化到 `localStorage`
-- 题目详情页已打通“提交记录/题解”功能：提交记录展示历史提交与运行结果，题解支持 AI SSE 流式生成完整思路与代码讲解
+- 题目详情页已打通“提交记录/题解”功能：提交记录展示历史提交与运行结果，题解支持 AI SSE 流式生成结构化讲解、Core 模式完整代码与 ACM 模式完整代码
 - 提交记录支持“回放联动”：点击历史提交可先确认再回放，自动回填当时代码与判题结果，并联动展示该次提交的 AI 找 Bug / AI 题解
 - 提交记录回放确认已升级为站内模态弹窗（支持 Esc/遮罩关闭与加载态禁用），不再使用浏览器原生 `confirm`
 - 题解功能已支持用户 Markdown 笔记上传与自动映射：在首页上传一次后，可按题目提取个人笔记并在“题解”tab优先展示，且按 Markdown 格式渲染
@@ -40,6 +41,16 @@
 - 做题页桌面端布局已优化为左右等高视口壳层：左侧切换 `描述/提交记录/笔记题解/AI题解/AI判题` 不再导致高度突变，左右区域改为各自内部滚动
 - 做题页三次重构已完成：左侧拆分“笔记题解/AI题解/AI判题”独立页签，`AI题解` 与 `AI判题` 模型选择独立记忆，且仅“描述”页签展示题目标题与徽标
 - 做题页四次优化已完成：左侧 AI 页签移除调试元信息（模型/来源/服务返回模型/会话/当前提交），右侧“判题结果”改为横向紧凑统计条
+- 做题页左侧页签视觉已按参考图升级：顶部改为圆角胶囊式导航，`提交记录/笔记题解/AI题解/AI判题` 头部与内容卡片层级同步增强
+- 做题页左侧页签滚动行为已修正：`描述/笔记题解/AI题解/AI判题` 的顶部首卡会和正文一起参与滚动，不再出现“头部固定、下面单独滚动”
+- 做题页桌面端布局已进一步紧凑化：工作台外边距、左右分栏间距、右侧上下分栏占位同步收紧，首屏可见内容明显增多
+- 做题页与顶部 `LeetCodePro` 导航栏之间的空白已进一步收紧：题目描述区与右侧编辑区整体更贴近顶栏，但该调整仅作用于做题页，不影响题库/进度/后台页的默认节奏
+- 做题页题面/编辑区已统一采用紧凑控件基线：标题卡、页签、下拉框、按钮、徽标、结果卡片与 Monaco 外框全部降噪收紧，减少“卡片套卡片”的空耗空间
+- AI 页签头部已进一步收敛：原独立的“标题说明卡 + leetPro 结果卡”已合并为单卡结构，模型选择与 `生成题解/AI判题` 操作直接放进 `leetPro` 组件头部
+- AI 页签布局已再次收敛：`leetPro` 主卡固定占位，不再随页签整体滚动；仅 `thinking` 与 `正文回答` 区域各自内部滚动，且卡头文案已移除、模型选择与主按钮同步完成美化
+- AI 工具条视觉已再简化：去掉外层大胶囊包裹，模型选择器与主按钮缩小为更轻、更紧凑的一行控件
+- 左侧顶部页签导航已改为满宽铺开：胶囊容器会占满左侧组件宽度，5 个页签按等分布局，不再只占左半区
+- 左侧顶部页签已与主面板融为一体：不再单独悬浮成一枚独立组件，而是以内嵌式顶部导航条的形式贴合在左侧主卡内部
 - 判题结果已支持失败样例可视化：展示输入/输出/期望输出，输出对比按字符级红绿高亮；隐藏用例默认折叠可手动展开
 - 失败样例展示已增强兼容：当历史数据缺少 `actualOutput` 时，会从 `Expected ..., got ...` 错误信息中自动回填“你的输出”
 - 判题内存已改为真实采集（提交结果展示峰值内存 KB），不再固定为空
@@ -53,6 +64,7 @@
 - ACM 判题结果比较已支持多解语义归一：典型无序输出题（如 `3sum`、`group-anagrams`）不再因顺序差异误判
 - 新增全量模式隔离巡检脚本：`npm run verify:judge-modes`，可一次性扫描 Hot100 全题的 `acm` 与 `core`（Python/C++）判题链路并输出报告到 `artifacts/judge-mode-isolation-report.json`
 - 编辑器模式切换行为已更新：切到 `ACM` 会自动加载 ACM 起步模板；切回 `core` 会恢复该题在核心模式下编辑过的代码
+- 编辑器工具栏支持当前缓冲区一键恢复默认模板：`core` 恢复为题目官方起步模板，`ACM` 恢复为标准输入输出起步模板，并使用站内弹窗确认覆盖
 - 做题页 ACM 代码区展示已精简：移除代码框内 `ACM 输入提示（stdin）` 浮层，避免与编辑区争抢空间
 - 题面描述区支持按当前编辑模式切换展示：`core` 展示函数式样例，`acm` 展示标准输入输出规范与 ACM 示例输入
 - 数据库已扩展题目 ACM 字段：`acm_input_spec/acm_output_spec/acm_sample_input/acm_sample_output`，并在 `db:seed` 自动回填
@@ -62,6 +74,8 @@
 - 新增进度聚合接口：`GET /api/progress/overview?timezone=<IANA>`（热力图按 AC 提交次数累计，雷达图按标签 AC 覆盖率计算，并返回掌握度聚合块）
 - 题目掌握度口径已重构：采用遗忘曲线（`1/3/7/14/30` 天）+ 近 7 天连续 AC 规则，状态改为 `UNTOUCHED/LEARNING/REINFORCING/MASTERED/REVIEW_DUE`
 - 掌握度仅统计 C++ 提交，保留 `core/acm` 双模式轨道；Python 提交仍保留在提交记录与判题链路
+- 题库“已做题”口径已调整：同一题只要 `core` 或 `acm` 任一支持模式的最新有效 C++ 提交为 `AC`，就会在题库显示为已做；若只完成一个模式，复习信号会提示“单模式已做题”
+- 待复习列表已临时隐藏历史藏数据：当前 `/progress` 只展示逾期小于 10 天的待复习记录，逾期 10 天及以上的旧记录暂不计入列表与数量；后续新复习间隔仍保留 `14/30` 天扩展能力
 - 做题页“运行与分析”已改为 LeetCode 风格双标签结构：`测试用例 / 测试结果` 二选一展示；测试用例面板支持查看官方示例，并可在前端本地新增/编辑/删除自定义 Case
 - 测试用例面板中的单行字段（如 `nums`、`期望输出`）已压缩为更紧凑的输入卡，优先单行展示，减少纵向占用
 - 题目页顶栏中部操作组已升级为 `刷新结果 / 运行测试 / 提交`：`运行测试` 会同步执行当前编辑器代码 + 右侧测试用例面板中的自定义 Case，不写 `submissions`；`提交` 仍按正式判题链路走 `写库 -> RabbitMQ -> Judge Dispatcher`
@@ -75,17 +89,19 @@
 - 前端构建目录已隔离：`next dev` 使用 `.next-dev`，`next build/start` 使用 `.next`，减少 chunk 缓存串扰
 - AI 找 Bug 链路已接通 `vLLM/MiniMax 实时调用 + SSE 流式输出 + ai_sessions/ai_messages 落库`（可返回 `sessionId`）
 - AI 判题上下文已增强：失败样例会携带 `输入 / 你的输出 / 期望输出 / stderr / 是否隐藏用例` 进入 AI 与 fallback 诊断，避免只返回泛化套话
-- AI 判题 / AI 题解 展示已增强阶段进度：请求发出后可立即看到 `准备上下文 -> 检索证据 -> 请求模型 -> 整理结果`，并显示等待时长
+- AI 判题 / AI 题解 请求阶段不再占用卡头空间：生成过程只保留 `thinking` 区的思考时长与正文流式刷新
 - AI 流式协议已向 OpenAI Responses 语义事件靠拢：前端支持 `response.output_text.delta`、`response.completed` 与 `response.reasoning_summary_text.delta`
 - AI 思维展示遵循 OpenAI 官方边界：不展示原始 chain-of-thought，仅展示 `reasoning summary`（模型支持时）
 - AI 页签前端已支持 `thinking` 折叠/展开：`AI题解` 与 `AI判题` 的推理摘要可单独收起，不影响正文继续流式更新
 - AI Markdown 渲染已升级为“流式友好”模式：流到一半时会先补齐未闭合代码块再渲染，避免正文一直等到结尾才整体成型
-- AI 回答展示已升级为“双流面板”样式：`AI题解` / `AI判题` 统一拆分为 `thinking` 与 `正文回答` 两个实时流式区域，并移除头像徽标
+- AI 回答展示已升级为轻量“双流面板”样式：`AI题解` / `AI判题` 统一拆分为 `thinking` 与回答两个实时流式区域，移除头像徽标、内层大卡片和重复描边
 - `thinking` 面板支持 `展开/收起 + 放大/标准视图`，且在流式生成过程中保持实时追加渲染
 - 当前前端会优先使用独立 `reasoningSummary` 流；若模型把思考与回答混在同一段文本中，也会尝试按 `<think>...</think>` 或 `Thought ... Final Answer ...` 结构自动拆分
-- AI 页签布局已收敛为更轻的工具区 + 单主卡片：移除重复说明文案，卡片顶部改为 `Leet` 品牌行与紧凑阶段提示
+- AI 页签布局已收敛为更轻的工具区 + 单主卡片：移除重复说明文案、卡头阶段提示和状态胶囊，卡片顶部只保留 `leetPro AI` 品牌行与操作控件
 - AI 判题流式链路已补充 `response.output_text.replace` 兜底：当上游安全清洗导致正文不再是纯追加关系时，前端会按快照替换继续实时刷新
 - AI 判题已放宽代码展示策略：允许返回用于定位问题的短代码片段，仅在检测到“整题完整实现”时才继续做打码
+- AI 模型适配已收敛为统一 OpenAI-compatible 架构：vLLM / MiniMax / DeepSeek / 首页自定义配置共用同一套 runtime config 与 SSE 语义事件，前端不再按 provider 做流式兜底特判
+- AI 题解支持输出 Core 模式与 ACM 模式完整参考代码：包含题意、思路、不变式、复杂度、两种模式代码、陷阱和验证用例
 - AI Tutor 已集成 `RAG 方法论 + LlamaIndex（知识切分检索）+ LangChain（提示词编排）`，并保持现有 API/SSE 协议不变
 - AI Tutor RAG 已接入用户上传笔记：读取 `user_problem_notes.content_md` 并参与检索增强（按题目 slug 关联）
 - API 新增 `GET/POST/PATCH/DELETE /api/ai/configs` 与 `PUT /api/ai/configs/defaults`，并支持 `aiConfigId` 优先路由自定义 AI
@@ -177,12 +193,18 @@ cp .env.example .env
 ```bash
 NEXT_PUBLIC_DEFAULT_AI_PROVIDER=vllm
 AI_TUTOR_TIMEOUT_MS=12000
-AI_TUTOR_MINIMAX_TIMEOUT_MS=90000
+AI_TUTOR_CUSTOM_CONFIG_TIMEOUT_MS=90000
+AI_TUTOR_CUSTOM_CONFIG_REVIEW_TIMEOUT_MS=90000
+AI_TUTOR_CUSTOM_CONFIG_SOLUTION_TIMEOUT_MS=300000
+AI_TUTOR_CUSTOM_CONFIG_REVIEW_MAX_TOKENS=4096
+AI_TUTOR_CUSTOM_CONFIG_SOLUTION_MAX_TOKENS=8192
 AI_TUTOR_REVIEW_TIMEOUT_MS=30000
-AI_TUTOR_REVIEW_MINIMAX_TIMEOUT_MS=90000
-AI_TUTOR_SOLUTION_TIMEOUT_MS=12000
-AI_TUTOR_SOLUTION_MINIMAX_TIMEOUT_MS=210000
-AI_CONFIG_ENCRYPTION_KEY=replace_with_32_byte_secret_key
+AI_TUTOR_SOLUTION_TIMEOUT_MS=300000
+AI_TUTOR_REVIEW_MAX_TOKENS=2200
+AI_TUTOR_SOLUTION_MAX_TOKENS=4096
+AI_TUTOR_REVIEW_TEMPERATURE=0.2
+AI_TUTOR_SOLUTION_TEMPERATURE=0.25
+AI_CONFIG_ENCRYPTION_KEY=leetcodepro-dev-ai-config-key!!!
 AI_TUTOR_RAG_ENABLED=true
 AI_TUTOR_RAG_TOP_K=4
 LLM_PROVIDER=vllm
@@ -192,26 +214,27 @@ VLLM_MODEL=Qwen/Qwen2.5-7B-Instruct
 MINIMAX_BASE_URL=https://api.minimaxi.com/v1
 MINIMAX_API_KEY=your_minimax_api_key
 MINIMAX_MODEL=MiniMax-M2.7
-MINIMAX_TIMEOUT_SECONDS=60
-VLLM_REVIEW_MAX_TOKENS=2200
-MINIMAX_REVIEW_MAX_TOKENS=3000
-MINIMAX_SOLUTION_MAX_TOKENS=3000
+DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
+DEEPSEEK_API_KEY=your_deepseek_api_key
+DEEPSEEK_MODEL=deepseek-chat
 CHAT_TEMPLATE_TYPE=qwen
 ADMIN_API_KEY=leetcodepro-admin-key
 ```
 
 说明：
 - `LLM_PROVIDER` 是 AI 服务默认 provider（当请求体不显式传 `provider` 时生效）。
-- 前端支持按次请求选择 `vLLM` 或 `MiniMax`，并通过 `provider` 字段传递给后端。
-- API 代理默认超时 `AI_TUTOR_TIMEOUT_MS=12000`；MiniMax 可单独用 `AI_TUTOR_MINIMAX_TIMEOUT_MS` 放宽（默认 `90000`，题解场景建议不低于 `60s`）。
-- AI 找 Bug 可单独放宽超时：`AI_TUTOR_REVIEW_TIMEOUT_MS` / `AI_TUTOR_REVIEW_MINIMAX_TIMEOUT_MS`。
-- AI 题解可单独放宽超时：`AI_TUTOR_SOLUTION_TIMEOUT_MS` / `AI_TUTOR_SOLUTION_MINIMAX_TIMEOUT_MS`（默认 `210s`）。
+- 系统内置 provider 均按 OpenAI-compatible 处理：`vllm`、`minimax`、`deepseek` 只提供各自的 `BASE_URL/API_KEY/MODEL`，请求参数统一由 `AI_TUTOR_*` 控制。
+- API 代理不再按 provider 单独放宽超时；`AI_TUTOR_REVIEW_TIMEOUT_MS` 控制 AI 判题，`AI_TUTOR_SOLUTION_TIMEOUT_MS` 控制 AI 题解。
+- 首页自定义 AI 配置（OpenAI 兼容）可单独用 `AI_TUTOR_CUSTOM_CONFIG_TIMEOUT_MS` / `AI_TUTOR_CUSTOM_CONFIG_REVIEW_TIMEOUT_MS` / `AI_TUTOR_CUSTOM_CONFIG_SOLUTION_TIMEOUT_MS` 放宽超时；DeepSeek / MiniMax 这类上游建议保持 `90s/90s/300s` 或更高。
+- 首页自定义 AI 配置输出上限可单独用 `AI_TUTOR_CUSTOM_CONFIG_REVIEW_MAX_TOKENS` / `AI_TUTOR_CUSTOM_CONFIG_SOLUTION_MAX_TOKENS` 调整；DeepSeek 题解被截断时优先确认 `AI_TUTOR_CUSTOM_CONFIG_SOLUTION_MAX_TOKENS=8192`。
+- 系统 provider 输出上限按请求类型控制：`AI_TUTOR_REVIEW_MAX_TOKENS` / `AI_TUTOR_SOLUTION_MAX_TOKENS`。
+- 系统 provider 温度按请求类型控制：`AI_TUTOR_REVIEW_TEMPERATURE` / `AI_TUTOR_SOLUTION_TEMPERATURE`。
 - `AI_CONFIG_ENCRYPTION_KEY` 用于加密存储用户自定义 AI 的 API Key，必须配置 32 字节密钥（支持 utf8/base64/hex）。
+- 如果你的 `.env` 是在 AI 配置中心功能上线前创建的，里面可能没有 `AI_CONFIG_ENCRYPTION_KEY`；请手动补上后重启 `@leetcodepro/api`，否则首页新增 AI 配置会失败。
 - `AI_TUTOR_RAG_ENABLED` 控制 AI Tutor 是否启用检索增强（默认 `true`）。
 - `AI_TUTOR_RAG_TOP_K` 控制每次检索注入的知识片段数量（默认 `4`，建议 `3~6`）。
-- AI Tutor 访问 MiniMax 的超时为 `MINIMAX_TIMEOUT_SECONDS`（默认 `60`，建议不要低于 `45`）。
-- AI 找 Bug 输出上限可独立调大：`VLLM_REVIEW_MAX_TOKENS` / `MINIMAX_REVIEW_MAX_TOKENS`（默认分别 `2200/3000`）。
-- 若题解输出被截断，可优先调大 `MINIMAX_SOLUTION_MAX_TOKENS`（默认 `3000`）。
+- AI Tutor 流式优先使用 `/chat/completions`；只有某个 Base URL 已成功使用 `/responses` 时，后续才缓存使用 `/responses`。
+- AI 题解会输出结构化讲解，并分别给出 Core 模式与 ACM 模式完整参考代码、关键行说明和验证用例。
 - 真实密钥只放本地 `.env`，不要提交到仓库。
 
 ### 3.4 安装依赖
@@ -313,7 +336,8 @@ curl http://localhost:8080/health
 `ai-tutor` 预期示例：
 - `status` 为 `ok`
 - `provider` 为 `.env` 中默认 provider（例如 `vllm`）
-- `model` 为默认 provider 对应模型（例如 `Qwen/Qwen2.5-7B-Instruct` 或 `MiniMax-M2.7`）
+- `providerKind` 为 `openai_compatible`
+- `model` 为默认 provider 对应模型（例如 `Qwen/Qwen2.5-7B-Instruct`、`MiniMax-M2.7` 或 `deepseek-chat`）
 - `ragEnabled` 默认为 `true`
 - `langChainReady` / `llamaIndexReady` 为 `true`（依赖安装成功时）
 - `ragTopK` 默认为 `4`
@@ -412,14 +436,15 @@ curl -X POST http://localhost:3001/api/submissions \
 ```bash
 curl -N -X POST http://localhost:3001/api/ai/bug-find/stream \
   -H "content-type: application/json" \
-  -d '{"problemSlug":"two-sum","submissionId":"<submission-id>","provider":"minimax","language":"cpp","mode":"core","status":"WA","runtimeMs":5,"memoryKb":1024,"passedCount":2,"totalCount":15,"errorMessage":"Expected [0,1], got []"}'
+  -d '{"problemSlug":"two-sum","submissionId":"<submission-id>","provider":"vllm","language":"cpp","mode":"core","status":"WA","runtimeMs":5,"memoryKb":1024,"passedCount":2,"totalCount":15,"errorMessage":"Expected [0,1], got []"}'
 ```
 
 预期：
-- 持续收到 `event: meta / delta / done`
+- 持续收到 `event: meta / phase / response.output_text.delta / response.completed / done`
 - 在 `delta` 前应先收到 `event: phase`，阶段文案类似 `准备上下文 / 检索失败样例 / 请求模型 / 整理结果`
-- `done` 事件中包含 `sessionId`、`source`、`provider`、`guidance`
-- `source` 优先为所选 provider（`vllm` 或 `minimax`），不可用时回退为 `ai-tutor-fallback`
+- `meta` 事件包含 `sessionId`、`source`、`providerKind=openai_compatible`、`model`
+- `done` 事件中包含 `sessionId`、`source`、`providerKind`、`model`、`guidance`
+- `source` 优先为所选 provider（`vllm` / `minimax` / `deepseek`），不可用时回退为 `ai-tutor-fallback`
 - `guidance` 应直接给出“主要问题 + 具体修改点 + 快速验证”，并结合本次提交信号（报错/通过率/代码片段）定位错误
 - 若该提交存在结构化失败样例，`guidance` 应引用“输入 / 你的输出 / 期望输出”中的至少一项，而不是只说“检查状态更新顺序”
 - 若本次提交 `status=AC`，应返回“通过后优化评审”（复杂度/规范/边界鲁棒性），而不是继续找 bug
@@ -435,8 +460,9 @@ curl -X POST http://localhost:3001/api/ai/bug-find \
 预期：
 
 - 返回 `guidance`
-- `source` 为 `vllm` 或 `minimax` 或 `ai-tutor-fallback` 或 `api-fallback`
-- 返回 `provider`（`vllm` 或 `minimax`）
+- `source` 为 `vllm`、`minimax`、`deepseek`、`ai-tutor-fallback` 或 `api-fallback`
+- 返回 `providerKind=openai_compatible`
+- 返回 `provider`（`vllm`、`minimax` 或 `deepseek`）
 - 返回 `sessionId`
 - `guidance` 为 Markdown 文本，前端“AI 找 Bug”区域会按 Markdown 渲染
 
@@ -511,11 +537,11 @@ curl -X POST http://localhost:3001/api/notes/upload \
 19. 在右侧编辑器保持默认代码或粘贴可 AC 代码，点击顶栏 `提交`。
 20. 观察结果面板切换为 `提交结果`，且状态会从 `QUEUED/RUNNING` 变为终态（如 `AC`）；这一步应使用后端正式测试集，而不是第 15 步修改过的本地 Case。
 21. 在左侧切到 `AI判题` 页签，将模型从 `vLLM（远程）` 切到 `MiniMax（远程）`。
-22. 点击 `AI判题`，先观察结果区顶部出现“当前阶段”提示（例如“正在检索失败样例、用户笔记与结构化证据”），并带有等待时长。
+22. 点击 `AI判题`，确认卡头不再出现“当前阶段”提示或“生成中”状态胶囊；等待过程只在 `thinking` 区与回答区内体现。
 23. 若本次未 AC，确认 `AI判题` 返回“主要问题 + 具体修改建议 + 快速验证”；若已 AC，应返回“通过后优化评审”。
 24. 若失败题目存在公开失败样例，确认 AI 文本会引用“输入 / 你的输出 / 期望输出”中的具体值，而不是只返回泛化模板。
 25. 在左侧切到 `AI题解` 页签，将模型切换为 `vLLM（远程）` 后点击 `生成题解`。
-26. 观察 `AI题解` 区域同样先显示“当前阶段”，随后再开始流式正文。
+26. 观察 `AI题解` 区域不再在卡头显示“正在检索题解笔记与题目上下文”等阶段文案，正文仍会继续流式出现。
 27. 在 `AI题解` 或 `AI判题` 的 `thinking` 面板点击 `收起 thinking`，确认思考区可折叠；再次点击 `展开 thinking` 后，先前已流出的内容仍然保留。
 28. 在 `thinking` 面板点击 `放大 thinking`，确认思考区高度明显增加且内部可滚动；再点击 `标准视图` 可恢复常规高度。
 29. 让模型输出包含 Markdown 代码块或列表的长回答，确认正文会边流边渲染，而不是等到整个响应结束后才一次性排版完成。
@@ -530,10 +556,10 @@ curl -X POST http://localhost:3001/api/notes/upload \
 38. 返回首页 `http://localhost:3000/`，在“上传刷题笔记（全局）”卡片上传包含多题笔记的 Markdown。
 39. 回到题目页 `笔记题解` 标签，确认“我的题解笔记”区域能展示当前题匹配内容。
 40. 将浏览器拉宽到 `1920px` 或 `2560px`，确认 `题库/进度/后台` 页面主体区域随窗口扩展，不再被 `1400px` 限制。
-41. 在 `http://localhost:3000/problems/two-sum` 桌面端确认左右默认分栏约 `40/60`，拖拽中间分隔条可实时调整宽度；双击分隔条恢复默认比例。
+41. 在 `http://localhost:3000/problems/two-sum` 桌面端确认左右默认分栏约 `46/54`，且左右主卡更贴近视口边界，拖拽中间分隔条可实时调整宽度；双击分隔条恢复默认比例。
 42. 刷新页面确认分栏比例保持；将窗口缩到平板/手机宽度后确认自动切换为上下堆叠，且拖拽分隔条不显示。
-43. 在题目页右侧确认“代码框/运行与分析”默认约 `58/42`，拖拽中间横向分隔条后高度实时变化，双击分隔条恢复默认比例。
-44. 观察右侧结果区核心指标，确认以横向紧凑统计条展示（状态/运行时间/内存/通过数），空间不足自动换行。
+43. 在题目页右侧确认“代码框/运行与分析”默认约 `62/38`，工具栏与编辑器边距已收紧，拖拽中间横向分隔条后高度实时变化，双击分隔条恢复默认比例。
+44. 观察页面顶部导航与左右主工作区之间的距离，确认左侧题目描述区和右侧编辑区整体进一步上移，更贴近 `LeetCodePro` 顶栏，但没有与导航栏发生重叠。
 45. 将窗口缩到平板/手机宽度，确认纵向分栏自动回退为普通上下堆叠且不显示拖拽条。
 46. 在题目页左侧来回切换 `描述/提交记录/笔记题解/AI题解/AI判题`，确认左右面板整体高度保持一致，不出现跳变。
 47. 在右侧“运行与分析”点击“收起/展开”，确认状态可切换且刷新后保持。
@@ -548,11 +574,11 @@ curl -X POST http://localhost:3001/api/notes/upload \
 - 点击 `提交` 后结果区应切回正式 `提交结果`；此时“刷新结果”只刷新提交，不刷新本地测试运行
 - `AC` 或失败态都会稳定落在终态，不会长期卡在 `QUEUED`
 - `AI判题` 页签返回非空文本，且会结合提交代码与错误信息直接定位可疑问题位置
-- `AI判题` 在等待模型返回前，结果区顶部应先展示“当前阶段 + 已等待时长”
-- `AI题解` 在等待正文前，结果区顶部应先展示“当前阶段 + 已等待时长”
+- `AI判题` 在等待模型返回前，卡头不再展示“当前阶段 + 已等待时长”，避免挤占操作区
+- `AI题解` 在等待正文前，卡头不再展示阶段文案，避免出现“正在检索题解笔记与题目上下文”这类长提示
 - `AI题解` 与 `AI判题` 的 `thinking` 面板应支持 `收起 thinking / 展开 thinking / 放大 thinking / 标准视图`
 - 当模型流式输出未闭合的 Markdown 代码块时，正文也应继续实时排版，而不是等到最终 `done`
-- `AI题解` 与 `AI判题` 的回答区应呈现统一双流卡片：无头像徽标、顶部状态标签、独立 `thinking` 区与正文区，并且两块都应在流式过程中持续刷新
+- `AI题解` 与 `AI判题` 的回答区应呈现统一双流卡片：无头像徽标、无顶部状态胶囊、独立 `thinking` 区与正文区，并且两块都应在流式过程中持续刷新
 - 当模型将思考与回答混在一段返回文本里时，前端应优先把思考内容抽到内嵌 `thinking` 区，正文区不应重复出现整段思考文本
 - 对存在公开失败样例的 WA 提交，`AI判题` 应引用结构化失败样例（输入/输出/期望输出）中的具体值
 - 左侧 AI 页签不再展示调试元信息（`模型/来源/服务返回模型/会话/当前提交`）
@@ -561,8 +587,10 @@ curl -X POST http://localhost:3001/api/notes/upload \
 - 页面不再展示开发调试元信息：`控制台` 占位、`Submission ID`、`实际 Provider`、`来源`、`会话`
 - 超宽屏下主内容区域应充分利用视口宽度（保留响应式安全边距），不再出现大面积左右留白
 - 做题页桌面端支持可拖拽分栏；刷新后保持上次分栏比例，双击分隔条恢复默认
-- 做题页右侧“代码框/运行与分析”支持纵向拖拽比例（默认 `58/42`），刷新后保持，双击恢复默认
+- 做题页右侧“代码框/运行与分析”支持纵向拖拽比例（默认 `62/38`），刷新后保持，双击恢复默认
 - 右侧“判题结果”关键指标采用横向紧凑统计条展示，避免竖向堆叠
+- 做题页桌面端左右主区默认更贴边、更紧凑；描述正文、Monaco 可视行数与结果区首屏信息量都高于改版前
+- 做题页桌面端左右主工作区整体更靠近顶部导航栏；减少的是“顶栏 -> 工作区”的外层空白，不是内容区内部的工具栏/正文间距
 - 桌面端小高度窗口下，代码编辑器主体仍保持可见（至少可见编辑区与光标输入区域）
 - 代码区顶部“模式/语言”工具栏必须完整可见，切换模式/语言后不会被挤压到容器外
 - 做题页桌面端左右区域在 tab 切换时保持等高，左/右内容均在各自面板内滚动
@@ -591,6 +619,54 @@ curl -X POST http://localhost:3001/api/notes/upload \
 - 首页上传 `.md` 后，系统会返回匹配结果；若包含当前题目，题解页“我的题解笔记”应立即展示对应段落
 - “我的题解笔记”区域应按 Markdown 正确渲染（标题、列表、代码块、表格等）
 - 当笔记使用 `24. 两两交换链表中的节点`、`25.K个一组翻转链表（附注）` 这类题号边界行时，系统会按“两个题号行之间的内容”归属前一道题目
+
+### 4.5.1 编辑器模板恢复验证（本次新增）
+
+浏览器打开 `http://localhost:3000/problems/two-sum`，按下面步骤操作：
+
+1. 保持 `core + C++`，在默认模板中输入一行明显标记（例如 `// restore-me`）。
+2. 观察编辑器工具栏右侧，确认出现一个圆形图标按钮：逆时针箭头代表“还原模板”，且仍位于模式/语言选择器所在组件内部。
+3. 将鼠标悬停在“还原模板”图标上，确认浏览器 tooltip/标题提示为“还原默认模板”。
+4. 点击“还原模板”图标，确认弹出站内居中确认框；先点“取消”，确认当前代码不变。
+5. 再次点击“还原模板”图标并确认，验证编辑器恢复为题目默认 `Solution` 模板，且第 1 步插入的标记消失。
+6. 保持 `core + C++`，确认当前代码与默认模板一致时，“还原模板”图标按钮变为禁用。
+7. 切到 `ACM + Python`，输入一行明显标记（例如 `# acm-restore-me`），再点击“还原模板”图标并确认，验证编辑器恢复为 ACM 默认模板。
+8. 在 `core/acm` 与 `C++/Python` 间各切换 1 次，确认“还原模板”图标、模式/语言选择器与右侧状态徽标仍都在同一行工具栏中可见。
+
+预期：
+- `还原模板` 只覆盖当前可见的 `mode + language` 缓冲区，不影响该题其它模式或语言的代码缓存
+- 桌面端与窄屏下工具栏不会被新增按钮挤坏；模式/语言选择器与右侧状态徽标仍可正常显示
+
+### 4.5.2 左侧页签样式验证（本次新增）
+
+浏览器打开 `http://localhost:3000/problems/two-sum`，按下面步骤操作：
+
+1. 观察左侧顶部页签区，确认 `描述 / 提交记录 / 笔记题解 / AI题解 / AI判题` 处于同一个圆角胶囊式容器内，而不是旧的下划线 tab。
+2. 观察当前激活页签，确认它有更明显的白色高亮底、图标、圆角胶囊外观，并带一条橙色短下划线。
+3. 依次点击 `提交记录`、`笔记题解`、`AI题解`、`AI判题`，确认页签切换时顶部样式保持统一，不会出现挤压、换行错位或高度跳变。
+4. 切到 `提交记录`，确认顶部出现更强调的说明卡片，历史记录列表改为独立圆角卡片，而不是旧的简单分隔线列表。
+5. 切到 `笔记题解`，确认顶部说明卡和正文仍属于同一滚动流，向下滚动时会一起移动。
+6. 切到 `AI题解` 与 `AI判题`，确认不再显示 `AI题解，按当前题目生成结构化题解...`、`AI判题，基于运行测试...` 这两段说明文案。
+7. 将浏览器宽度缩小到窄屏尺寸，确认左侧页签区域允许横向滚动，但整体仍保持在组件内部，不会把右侧工作区挤坏。
+8. 切到 `AI题解`，确认 `leetPro AI` 主卡整体固定在页签区域内，不随外层滚动移动；只有 `thinking` 与回答区域内部滚动。
+9. 切到 `AI判题`，确认 `AI判题` 按钮与模型选择器位于 `leetPro AI` 卡头同一行内，且卡头不再显示“生成中/已完成/待生成”状态胶囊。
+10. 在 `AI题解` 与 `AI判题` 中分别触发一次生成，确认 `thinking` 面板与回答面板可以各自滚动，而顶部 `leetPro AI` 头部、模型选择器和主按钮保持可见。
+11. 观察 `AI题解` 与 `AI判题` 卡头右侧，确认模型选择器和按钮已经缩小为更紧凑的一行控件，不再出现外层大号套娃胶囊。
+12. 回到左侧顶部页签区域，确认整条胶囊导航已经横向占满左侧组件内容宽度，`描述/提交记录/笔记题解/AI题解/AI判题` 5 个按钮按等分铺开，不再只占左边一段。
+13. 继续观察左侧顶部页签区域，确认它已经和左侧主面板顶部融为一体：不再有单独悬浮的大胶囊外壳，而是直接以内嵌导航条贴合在面板顶部。
+14. 观察 `AI题解` 与 `AI判题` 主卡内部，确认没有旧版“外层大卡 + 内层大卡 + thinking 大胶囊”的多重嵌套；正文区域直接在单卡内展示，视觉层级更简单。
+
+预期：
+- 左侧页签整体视觉更接近 LeetCode/参考图风格：浅色胶囊容器、圆角按钮、激活态更突出
+- `提交记录/笔记题解/AI题解/AI判题` 的内容层级更清晰，卡片圆角、留白和阴影统一
+- `描述` 页签标题区不再显示额外英文标记，只保留题号、题名和元信息徽标
+- `笔记题解` 的顶部首卡与正文属于同一滚动流，滚动时不会再出现“首卡固定、下面内容单独移动”
+- `AI题解` 与 `AI判题` 现在都只保留一张固定主结果卡；卡头不再显示额外说明文案、阶段提示或状态胶囊，只保留 `leetPro AI`、模型选择器和主操作按钮
+- `AI题解/AI判题` 中只有 `thinking` 与回答两块内容区域会滚动，外层 `leetPro AI` 卡片本身不会整体滚动
+- AI 卡头右侧控件应更小巧：模型选择器与按钮高度、圆角和内边距明显收缩，视觉上更简洁
+- AI 主卡内部应更轻：移除内层大描边容器、装饰头像和大号 thinking 胶囊，减少嵌套边框对正文的干扰
+- 左侧顶部页签胶囊应占满组件可用宽度，5 个页签均匀分布，右侧不再留出大块空白
+- 左侧顶部页签应直接属于主面板的一部分，而不是额外浮起的一层独立组件
 
 ### 4.12 后台判题数据看板验证（本次新增）
 
@@ -653,8 +729,8 @@ curl "http://localhost:3001/api/progress/overview?timezone=Asia/Shanghai"
   - `statusCounts`（`UNTOUCHED/LEARNING/REINFORCING/MASTERED/REVIEW_DUE`）
   - `masteredProblems`、`dueReviewProblems`、`bothModesMasteredProblems`
   - `modeCompletion.core/acm`
-  - `dueReviewItems`（最多 `10` 条，按 `overdueDays` 降序）
-  - `note`（应提示“掌握度仅统计 C++ 提交”）
+  - `dueReviewItems`（最多 `10` 条，按 `overdueDays` 降序；当前仅展示 `overdueDays < 10` 的记录）
+  - `note`（应提示“掌握度仅统计 C++ 提交”，并说明待复习暂只展示逾期小于 10 天记录）
 
 错误路径验证（非法时区）：
 
@@ -673,7 +749,7 @@ curl "http://localhost:3001/api/progress/overview?timezone=Mars/OlympusMons"
 3. 其下应看到 3 个掌握度卡片：`已熟练题数`、`待复习题数`、`Core/ACM 双模式熟练进度`。
 4. 热力图应展示近 90 天连续日期格子；鼠标悬浮可看到日期和 AC 次数。
 5. 雷达图应展示 Top8 高频标签；tooltip 显示 `覆盖率%` 和 `已解/总题数`。
-6. 页面底部“待复习题目（Top10）”应显示题目、待复习模式、建议复习时间、逾期天数，并可点击跳转到题目页。
+6. 页面底部“待复习题目（Top10）”应显示题目、待复习模式、建议复习时间、逾期天数，并可点击跳转到题目页；当前逾期 `10` 天及以上的历史记录不会出现在列表中。
 7. 如切换系统时区后刷新页面，统计时区与图表分桶应随浏览器时区变化。
 
 ### 4.16 题目掌握度功能验证（本次新增）
@@ -689,6 +765,8 @@ curl http://localhost:3001/api/problems
 - `masterySummary` 字段包含：
   - `overallStatus`：`UNTOUCHED | LEARNING | REINFORCING | MASTERED | REVIEW_DUE`
   - `isSolved`
+  - `solvedModes`
+  - `isSingleModeSolved`
   - `totalAttempts`
   - `latestStatus`
   - `dueModes`、`consecutiveAc`、`reviewIntervalDays`、`nextReviewAt`、`overdueDays`
@@ -703,13 +781,14 @@ curl http://localhost:3001/api/problems/two-sum/mastery
 - 返回 `summary` 与 `tracks`
 - `tracks` 固定 2 条（`core-cpp`、`acm-cpp`）
 - 每条 track 包含 `mode/language/supported/status/totalAttempts/latestStatus/isSolved/totalAcCount/consecutiveAc/reviewIntervalDays/nextReviewAt/overdueDays`
+- `isSolved` 按该模式最新有效 C++ 提交是否为 `AC` 判断；如果先 `AC` 后又提交 `WA/TLE/RE/CE`，该模式不再算已做
 - 不支持的轨道（若题目仅支持 CORE 或 ACM）状态应为 `UNSUPPORTED`
 - Python 提交不应改变掌握度状态（仅 C++ 计入）
 
 页面验证：
 
-1. 打开 `http://localhost:3000/problems`，观察“状态”列改为新徽标：`未做题/学习中/巩固中/已熟练/待复习`。
-2. 同一行副文案应显示复习信号（`今天复习 / X 天后复习 / 已逾期 X 天`）。
+1. 打开 `http://localhost:3000/problems`，观察“状态”列改为新徽标：`未做题/已做题/学习中/巩固中/已熟练/待复习`。
+2. 同一行副文案应显示复习信号（`单模式已做题 / 今天复习 / X 天后复习 / 已逾期 X 天`）。
 3. 打开任意题目页（如 `http://localhost:3000/problems/two-sum`），右侧“运行与分析”区域不再显示掌握度卡片，仅保留判题与 AI 分析。
 4. 重新提交代码后，回到 `/progress` 或 `/problems` 刷新页面，可看到掌握度状态和待复习列表变化。
 
@@ -760,8 +839,9 @@ curl -N -X POST http://localhost:3001/api/ai/solution/stream \
 ```
 
 预期：
-- 持续收到 `event: meta / delta / done`
-- 成功时 `done` 中包含 `editorial`、`source`、`provider`、`sessionId`
+- 持续收到 `event: meta / phase / response.output_text.delta / response.completed / done`
+- 成功时 `done` 中包含 `editorial`、`source`、`providerKind=openai_compatible`、`model`、`sessionId`
+- `editorial` 为结构化题解：包含题意、思路、不变式、复杂度、Core 模式完整代码、ACM 模式完整代码、常见陷阱与验证用例
 - 失败时会收到 `event: error`（含 `message`），并在 `done` 中携带 `error`
 
 ### 4.10 个人笔记题解验证（Markdown 上传与题目映射）
@@ -958,6 +1038,7 @@ npm run demo:mvp
    - Base URL：`https://api.openai.com/v1`（或你的兼容网关）
    - 模型名：`gpt-4o-mini`（示例）
    - API Key：输入有效密钥
+   - 前置检查：项目根目录 `.env` 中必须存在 `AI_CONFIG_ENCRYPTION_KEY`，修改后需要重启 API 服务
 3. 预期：列表出现新配置，`key` 显示为掩码（`••••xxxx`），不显示完整明文。
 4. 在“默认配置”里分别设置：
    - `AI判题默认配置 = my-openai-compatible`
@@ -1008,12 +1089,46 @@ docker compose down
   3. `docker compose up -d`
   4. 再执行 `npm run db:setup -w @leetcodepro/api`
 
-### 6.4 `Invalid problemSlug`
+### 6.4 首页新增 AI 配置时报 `AI_CONFIG_ENCRYPTION_KEY is missing`
+
+- 原因：项目根目录 `.env` 缺少 `AI_CONFIG_ENCRYPTION_KEY`，API 无法加密存储你填写的第三方模型 API Key
+- 处理步骤：
+  1. 打开 `/Users/moem/Desktop/vibecoding/LeetcodePro/.env`
+  2. 补充一行：`AI_CONFIG_ENCRYPTION_KEY=leetcodepro-dev-ai-config-key!!!`
+  3. 重启 API：在项目根目录执行 `npm run dev:api`，或重启整组 `npm run dev`
+  4. 刷新首页后重新新增 DeepSeek / OpenAI 兼容配置
+- 预期结果：列表能正常出现新配置，页面不再提示缺少加密密钥
+
+### 6.5 当前 AI 配置请求超时
+
+- 原因：上游 OpenAI 兼容服务响应慢于默认超时，常见于 DeepSeek / 第三方网关首包较慢，或 Base URL 可达但上游处理时间较长
+- 处理步骤：
+  1. 确认首页 AI 配置中的 `Base URL` 与 `model` 正确
+  2. DeepSeek 官方 OpenAI 兼容地址可用 `https://api.deepseek.com`，也兼容 `https://api.deepseek.com/v1`
+  3. 在项目根目录 `.env` 中确认：
+     `AI_TUTOR_CUSTOM_CONFIG_TIMEOUT_MS=90000`
+     `AI_TUTOR_CUSTOM_CONFIG_REVIEW_TIMEOUT_MS=90000`
+     `AI_TUTOR_CUSTOM_CONFIG_SOLUTION_TIMEOUT_MS=300000`
+  4. 重启 `npm run dev` 后重试
+- 预期结果：自定义 AI 配置不再因为本地代理超时被提前截断
+
+### 6.6 DeepSeek 输出被截断
+
+- 原因：自定义 OpenAI 兼容配置的 `max_tokens` 上限过低，模型按上限正常停止输出
+- 处理步骤：
+  1. 在项目根目录 `.env` 中确认：
+     `AI_TUTOR_CUSTOM_CONFIG_REVIEW_MAX_TOKENS=4096`
+     `AI_TUTOR_CUSTOM_CONFIG_SOLUTION_MAX_TOKENS=8192`
+  2. 重启 `npm run dev`
+  3. 回到 AI 题解页重新生成
+- 预期结果：DeepSeek 题解有更完整的输出空间，不再沿用 vLLM 的短输出上限
+
+### 6.7 `Invalid problemSlug`
 
 - 原因：提交时题目标识不存在
 - 处理：先执行 `curl http://localhost:3001/api/problems` 获取合法 `slug`
 
-### 6.5 `Judge queue unavailable, please retry.`
+### 6.8 `Judge queue unavailable, please retry.`
 
 - 原因：API 无法连接 RabbitMQ（`RABBITMQ_URL` 不可达）或队列声明失败
 - 处理步骤：
@@ -1022,7 +1137,7 @@ docker compose down
   3. `curl http://localhost:8080/health` 查看 `lastError`
   4. 确认 `.env` 中 `RABBITMQ_URL` 与 `JUDGE_QUEUE_NAME` 与服务一致
 
-### 6.6 `g++: command not found`
+### 6.9 `g++: command not found`
 
 - 原因：本机未安装 C++ 编译器
 - 处理：安装 Xcode Command Line Tools（macOS）
@@ -1067,25 +1182,25 @@ docker compose down
 
 ### 6.11 AI `source` 总是 `ai-tutor-fallback`
 
-- 原因：`ai-tutor` 无法连到所选 provider（`vllm`/`minimax`），或上游返回错误
+- 原因：`ai-tutor` 无法连到所选 provider（`vllm`/`minimax`/`deepseek`），或上游返回错误
 - 排查步骤：
   1. `curl http://localhost:8000/health`，确认默认 `provider` 与 `model` 正常
   2. 若你请求 `vllm`：检查 `.env` 中 `VLLM_BASE_URL`、`VLLM_API_KEY`、`VLLM_MODEL`
-  3. 若你请求 `minimax`：检查 `.env` 中 `MINIMAX_BASE_URL`、`MINIMAX_API_KEY`、`MINIMAX_MODEL`、`MINIMAX_TIMEOUT_SECONDS`
-  4. 直接探测 vLLM（如果在用 vLLM）：
+  3. 若你请求 `minimax`：检查 `.env` 中 `MINIMAX_BASE_URL`、`MINIMAX_API_KEY`、`MINIMAX_MODEL`
+  4. 若你请求 `deepseek`：检查 `.env` 中 `DEEPSEEK_BASE_URL`、`DEEPSEEK_API_KEY`、`DEEPSEEK_MODEL`
+  5. 直接探测 vLLM（如果在用 vLLM）：
      `curl http://127.0.0.1:18100/v1/models`
-  5. 若使用远程模型，确认网络连通与端口映射后重启 AI 服务：`npm run dev:ai`
+  6. 若使用远程模型，确认网络连通与端口映射后重启 AI 服务：`npm run dev:ai`
 
-### 6.12 AI `source` 返回 `api-fallback`（常见于 MiniMax）
+### 6.12 AI `source` 返回 `api-fallback`
 
-- 原因：API 代理请求 `ai-tutor` 超时（默认 12 秒），在上游返回前就被中断。
+- 原因：API 代理请求 `ai-tutor` 超时，在上游返回前就被中断。
 - 排查步骤：
-  1. 直接调用 `ai-tutor`：`curl -X POST http://localhost:8000/bug-find ...`，若 `source=minimax` 说明上游正常。
+  1. 直接调用 `ai-tutor`：`curl -X POST http://localhost:8000/bug-find ...`，若 `source` 为所选 provider 说明上游正常。
   2. 再调用 API 代理：`curl -X POST http://localhost:3001/api/ai/bug-find ...`，若 `source=api-fallback` 且耗时接近 `12s`，即为超时。
   3. 在 `.env` 调大：
-     - `AI_TUTOR_TIMEOUT_MS=12000`
-     - `AI_TUTOR_MINIMAX_TIMEOUT_MS=90000`（题解场景建议 `60~120s`）
-     - `MINIMAX_TIMEOUT_SECONDS=60`（若仍超时可调到 `90`）
+     - `AI_TUTOR_REVIEW_TIMEOUT_MS=30000`
+     - `AI_TUTOR_SOLUTION_TIMEOUT_MS=300000`
   4. 重启 API 服务：`npm run dev:api`（或重启 `npm run dev`）
 
 ### 6.13 前端报错 `Cannot find module './383.js'`
@@ -1120,12 +1235,12 @@ docker compose down
   1. API 代理与前端均增强 SSE 解析：同时支持 `\\n\\n` 和 `\\r\\n\\r\\n` 分隔
   2. 增加流结束时尾包补齐解析，避免最后一帧未被消费
   3. 前端 AI 面板改为固定高度滚动区域（鼠标滚轮可查看完整内容），并放大为右侧主区域
-  4. 若流式未收到 `done` 或文本疑似截断，前端自动走一次同步接口补齐内容
+  4. 前端统一消费 `response.output_text.delta` / `response.output_text.replace` / `done`，不再按 provider 自动补同步请求
   5. AI 找 Bug 独立超时默认提升到 `30s`（可用 `AI_TUTOR_REVIEW_TIMEOUT_MS` 覆盖）
 - 排查步骤：
   1. 观察 Network 中 `bug-find/stream` 是否返回 `done` 帧
   2. 若仍异常，直接调用 `POST /api/ai/bug-find` 对比文本完整度
-  3. 必要时调大 `.env` 的 `VLLM_REVIEW_MAX_TOKENS` 或 `MINIMAX_REVIEW_MAX_TOKENS`
+  3. 必要时调大 `.env` 的 `AI_TUTOR_REVIEW_MAX_TOKENS`
 
 ### 6.15 AI 题解显示为纯文本或内容被截断
 
@@ -1135,19 +1250,17 @@ docker compose down
 - 当前版本处理：
   1. 前端“题解”区域改为 Markdown 渲染（支持标题/列表/代码块/表格）
   2. AI Tutor 自动去除 `<think>` 推理块，减少无效 token 消耗
-  3. MiniMax 题解默认 `MAX_TOKENS` 提升到 `3000`
-  4. AI Tutor 对 MiniMax 的 `TransportError`（含 ReadTimeout）自动重试
-  5. 题解流式解析增强：支持 `\\n\\n`/`\\r\\n\\r\\n`，并在流式疑似截断时自动回退同步接口补齐
-  6. 题解路径对 MiniMax 增加一次应用层补偿重试（减少偶发 `ai-tutor-fallback` 套话回退）
-  7. 题解链路已移除模板兜底：MiniMax 失败时直接返回错误提示，不再输出套话题解
-  8. API 题解链路新增独立超时（`AI_TUTOR_SOLUTION_MINIMAX_TIMEOUT_MS` 默认 `210s`），避免上游重试期间被代理提前中断
-  9. API/前端会归一化 abort/timeout 原始英文错误（如 `This operation was aborted`），统一展示为中文“题解请求超时/生成失败”提示
+  3. 系统 provider 题解输出上限统一由 `AI_TUTOR_SOLUTION_MAX_TOKENS` 控制
+  4. 题解流式解析增强：支持 `\\n\\n`/`\\r\\n\\r\\n`，并统一消费 OpenAI-compatible 语义事件
+  5. 题解链路已移除模板兜底：上游失败时直接返回错误提示，不再输出套话题解
+  6. API 题解链路新增请求类型级超时（`AI_TUTOR_SOLUTION_TIMEOUT_MS` 默认 `300s`），避免上游生成期间被代理提前中断
+  7. API/前端会归一化 abort/timeout 原始英文错误（如 `This operation was aborted`），统一展示为中文“题解请求超时/生成失败”提示
+  8. AI 题解会输出 Core 模式与 ACM 模式完整参考代码，并补充关键行说明和验证用例
 - 排查步骤：
-  1. 确认 `source=minimax` 且 `provider=minimax`
+  1. 确认 `source` 与所选 provider 一致，且 `providerKind=openai_compatible`
   2. 在 `.env` 提升：
-     - `MINIMAX_SOLUTION_MAX_TOKENS=3000`（可继续调大）
-     - `AI_TUTOR_MINIMAX_TIMEOUT_MS=90000`
-     - `MINIMAX_TIMEOUT_SECONDS=60`（必要时到 `90`）
+     - `AI_TUTOR_SOLUTION_MAX_TOKENS=4096`（可继续调大）
+     - `AI_TUTOR_SOLUTION_TIMEOUT_MS=300000`
   3. 重启 `web/api/ai` 后再测试
 
 ### 6.16 上传笔记时报错 `relation "user_notes" does not exist`

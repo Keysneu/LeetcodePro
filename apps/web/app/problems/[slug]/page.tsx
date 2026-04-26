@@ -79,7 +79,7 @@ export default async function ProblemDetailPage({ params }: Props) {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
 
   return (
-    <section className="lc-workbench-page">
+    <section className="lc-workbench-page-tight">
       <ProblemResizableLayout className="h-full min-h-0">
         <ProblemSidePanel apiBaseUrl={apiBaseUrl} problem={{ ...problem, titleZh }} />
 

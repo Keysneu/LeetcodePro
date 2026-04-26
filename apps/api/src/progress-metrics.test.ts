@@ -82,7 +82,7 @@ test("mastery status counts and mode completion are aggregated from cpp-only log
   assert.equal(result.mastery.modeCompletion.acm.masteredProblems, 1);
 });
 
-test("due review items are sorted by overdue days and limited", () => {
+test("due review items hide stale records that are overdue for 10 days or more", () => {
   const problems = Array.from({ length: 12 }).map((_, index) => ({
     id: `p${index + 1}`,
     slug: `problem-${index + 1}`,
@@ -97,7 +97,7 @@ test("due review items are sorted by overdue days and limited", () => {
       id: `s-${problem.id}`,
       problemId: problem.id,
       status: "AC",
-      createdAt: `2026-03-${String(10 + index).padStart(2, "0")}T00:00:00.000Z`,
+      createdAt: `2026-04-${String(2 + index).padStart(2, "0")}T00:00:00.000Z`,
       mode: "core"
     })
   );
@@ -110,13 +110,19 @@ test("due review items are sorted by overdue days and limited", () => {
     dueReviewLimit: 10
   });
 
-  assert.equal(result.mastery.dueReviewItems.length, 10);
-  assert.equal(result.mastery.dueReviewProblems, 12);
+  assert.equal(result.mastery.dueReviewItems.length, 9);
+  assert.equal(result.mastery.dueReviewProblems, 9);
+  assert.deepEqual(
+    result.mastery.dueReviewItems.map((item) => item.problemSlug),
+    ["problem-4", "problem-5", "problem-6", "problem-7", "problem-8", "problem-9", "problem-10", "problem-11", "problem-12"]
+  );
 
   for (let index = 1; index < result.mastery.dueReviewItems.length; index += 1) {
     const previous = result.mastery.dueReviewItems[index - 1];
     const current = result.mastery.dueReviewItems[index];
     assert.ok(previous.overdueDays >= current.overdueDays);
+    assert.ok(previous.overdueDays < 10);
+    assert.ok(current.overdueDays < 10);
   }
 });
 

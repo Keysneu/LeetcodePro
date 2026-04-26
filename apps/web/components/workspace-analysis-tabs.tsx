@@ -9,14 +9,14 @@ type Props = {
 
 function tabClass(isActive: boolean): string {
   return [
-    "inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-semibold transition",
+    "inline-flex h-8 items-center gap-1.5 rounded-[10px] px-2.5 text-xs font-semibold transition",
     isActive ? "bg-[var(--lc-surface-soft)] text-[var(--lc-text)]" : "text-[var(--lc-text-muted)] hover:text-[var(--lc-text)]"
   ].join(" ");
 }
 
 function iconClass(isActive: boolean): string {
   return [
-    "inline-flex h-[18px] w-[18px] items-center justify-center rounded border text-[10px] font-bold",
+    "inline-flex h-4 w-4 items-center justify-center rounded border text-[9px] font-bold",
     isActive
       ? "border-[var(--lc-success)] text-[var(--lc-success)]"
       : "border-[color-mix(in_oklab,var(--lc-success)_45%,transparent)] text-[color-mix(in_oklab,var(--lc-success)_68%,transparent)]"

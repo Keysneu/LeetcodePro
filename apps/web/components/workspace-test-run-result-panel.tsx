@@ -67,7 +67,7 @@ function inferActualOutputFromStderr(stderr: string | null): string | null {
 
 function DiffText({ segments }: { segments: DiffSegment[] }) {
   return (
-    <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap break-all rounded border border-[var(--lc-border)] bg-[var(--lc-surface)] p-2 text-xs leading-6">
+    <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap break-all rounded-[12px] border border-[var(--lc-border)] bg-[var(--lc-surface)] p-2 text-[11px] leading-5">
       {segments.map((segment, index) => (
         <span key={`${segment.isMatch ? "m" : "d"}-${index}`} className={segment.isMatch ? "text-[var(--lc-success)]" : "text-[var(--lc-danger)]"}>
           {segment.text}
@@ -83,42 +83,42 @@ function TestRunCaseCard({ item, index }: { item: WorkspaceTestRunCaseResult; in
   const diff = buildCharDiffSegments(actualText, expectedText);
 
   return (
-    <div className="space-y-3 rounded-xl border bg-[var(--lc-surface)] p-3">
-      <div className="flex flex-wrap items-center gap-2 text-xs">
+    <div className="space-y-2.5 rounded-[12px] border bg-[var(--lc-surface)] p-2.5">
+      <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
         <span className="font-semibold text-[var(--lc-text)]">
           {index + 1}. {item.title}
         </span>
-        <span className={`rounded border px-2 py-0.5 font-semibold ${statusClass(item.status)}`}>{item.status}</span>
-        <span className="rounded border bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[var(--lc-text-muted)]">
+        <span className={`rounded-[10px] border px-2 py-0.5 font-semibold ${statusClass(item.status)}`}>{item.status}</span>
+        <span className="rounded-[10px] border bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[var(--lc-text-muted)]">
           {item.runtimeMs ?? "-"} ms
         </span>
-        <span className="rounded border bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[var(--lc-text-muted)]">
+        <span className="rounded-[10px] border bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[var(--lc-text-muted)]">
           {item.memoryKb ?? "-"} KB
         </span>
       </div>
 
       <div>
-        <p className="mb-1 text-[var(--lc-text-muted)]">输入</p>
-        <pre className="max-h-[180px] overflow-auto whitespace-pre-wrap break-all rounded border border-[var(--lc-border)] bg-[var(--lc-surface-soft)] p-2 text-xs leading-6 text-[var(--lc-text)]">
+        <p className="mb-1 text-[11px] text-[var(--lc-text-muted)]">输入</p>
+        <pre className="max-h-[180px] overflow-auto whitespace-pre-wrap break-all rounded-[12px] border border-[var(--lc-border)] bg-[var(--lc-surface-soft)] p-2 text-[11px] leading-5 text-[var(--lc-text)]">
           {normalizeDisplayText(item.inputData) || "(空)"}
         </pre>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
         <div>
-          <p className="mb-1 text-[var(--lc-text-muted)]">你的输出</p>
+          <p className="mb-1 text-[11px] text-[var(--lc-text-muted)]">你的输出</p>
           <DiffText segments={diff.left} />
         </div>
         <div>
-          <p className="mb-1 text-[var(--lc-text-muted)]">期望输出</p>
+          <p className="mb-1 text-[11px] text-[var(--lc-text-muted)]">期望输出</p>
           <DiffText segments={diff.right} />
         </div>
       </div>
 
       {item.stderr ? (
         <div>
-          <p className="mb-1 text-[var(--lc-text-muted)]">错误信息</p>
-          <pre className="max-h-[180px] overflow-auto whitespace-pre-wrap break-all rounded border border-[var(--lc-border)] bg-[var(--lc-surface-soft)] p-2 text-xs leading-6 text-[var(--lc-danger)]">
+          <p className="mb-1 text-[11px] text-[var(--lc-text-muted)]">错误信息</p>
+          <pre className="max-h-[180px] overflow-auto whitespace-pre-wrap break-all rounded-[12px] border border-[var(--lc-border)] bg-[var(--lc-surface-soft)] p-2 text-[11px] leading-5 text-[var(--lc-danger)]">
             {item.stderr}
           </pre>
         </div>
@@ -129,25 +129,25 @@ function TestRunCaseCard({ item, index }: { item: WorkspaceTestRunCaseResult; in
 
 export default function WorkspaceTestRunResultPanel({ result, errorMessage }: Props) {
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2 text-xs">
-        <span className="rounded border border-[var(--lc-border)] bg-[var(--lc-surface-soft)] px-2 py-0.5 font-semibold text-[var(--lc-text)]">
+    <div className="space-y-2.5">
+      <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+        <span className="rounded-[10px] border border-[var(--lc-border)] bg-[var(--lc-surface-soft)] px-2 py-0.5 font-semibold text-[var(--lc-text)]">
           运行测试
         </span>
-        <span className={`rounded border px-2 py-0.5 font-semibold ${statusClass(result.status)}`}>{result.status}</span>
-        <span className="rounded border bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[var(--lc-text-muted)]">
+        <span className={`rounded-[10px] border px-2 py-0.5 font-semibold ${statusClass(result.status)}`}>{result.status}</span>
+        <span className="rounded-[10px] border bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[var(--lc-text-muted)]">
           运行时间 {result.runtimeMs ?? "-"} ms
         </span>
-        <span className="rounded border bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[var(--lc-text-muted)]">
+        <span className="rounded-[10px] border bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[var(--lc-text-muted)]">
           内存 {result.memoryKb ?? "-"} KB
         </span>
-        <span className="rounded border bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[var(--lc-text-muted)]">
+        <span className="rounded-[10px] border bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[var(--lc-text-muted)]">
           通过 {result.passedCount} / {result.totalCount}
         </span>
       </div>
 
       {result.errorMessage ? (
-        <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap break-all rounded border border-[var(--lc-border)] bg-[var(--lc-surface-soft)] p-2 text-xs leading-6 text-[var(--lc-danger)]">
+        <pre className="max-h-[220px] overflow-auto whitespace-pre-wrap break-all rounded-[12px] border border-[var(--lc-border)] bg-[var(--lc-surface-soft)] p-2 text-[11px] leading-5 text-[var(--lc-danger)]">
           {result.errorMessage}
         </pre>
       ) : null}

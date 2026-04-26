@@ -102,4 +102,29 @@ test("overall status follows weaker mode when core is mastered but acm untouched
   assert.equal(coreTrack.status, "MASTERED");
   assert.equal(acmTrack.status, "UNTOUCHED");
   assert.equal(result.summary.overallStatus, "UNTOUCHED");
+  assert.equal(result.summary.isSolved, true);
+  assert.deepEqual(result.summary.solvedModes, ["core"]);
+  assert.equal(result.summary.isSingleModeSolved, true);
+});
+
+test("single mode solved only counts when latest terminal status in that mode is AC", () => {
+  const result = buildProblemMastery(
+    "BOTH",
+    [
+      submission("s1", "AC", "2026-04-13T00:00:00.000Z", "core", "cpp"),
+      submission("s2", "WA", "2026-04-14T00:00:00.000Z", "core", "cpp"),
+      submission("s3", "AC", "2026-04-14T01:00:00.000Z", "acm", "cpp")
+    ],
+    new Date("2026-04-15T00:00:00.000Z")
+  );
+
+  const coreTrack = result.tracks.find((item) => item.mode === "core");
+  const acmTrack = result.tracks.find((item) => item.mode === "acm");
+  assert.ok(coreTrack);
+  assert.ok(acmTrack);
+  assert.equal(coreTrack.isSolved, false);
+  assert.equal(acmTrack.isSolved, true);
+  assert.equal(result.summary.isSolved, true);
+  assert.deepEqual(result.summary.solvedModes, ["acm"]);
+  assert.equal(result.summary.isSingleModeSolved, true);
 });

@@ -15,4 +15,5 @@ test("normalizeAiProvider normalizes valid providers", () => {
   assert.equal(normalizeAiProvider("vllm"), "vllm");
   assert.equal(normalizeAiProvider("VLLM"), "vllm");
   assert.equal(normalizeAiProvider(" minimax "), "minimax");
+  assert.equal(normalizeAiProvider("DeepSeek"), "deepseek");
 });

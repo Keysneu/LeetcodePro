@@ -36,6 +36,8 @@ type MasterySummaryStatus = "UNTOUCHED" | "LEARNING" | "REINFORCING" | "MASTERED
 type ProblemMasterySummary = {
   overallStatus: MasterySummaryStatus;
   isSolved: boolean;
+  solvedModes: Array<"core" | "acm">;
+  isSingleModeSolved: boolean;
   totalAttempts: number;
   latestStatus: SubmissionStatus | null;
   dueModes: Array<"core" | "acm">;
@@ -48,6 +50,8 @@ type ProblemMasterySummary = {
 const DEFAULT_MASTERY_SUMMARY: ProblemMasterySummary = {
   overallStatus: "UNTOUCHED",
   isSolved: false,
+  solvedModes: [],
+  isSingleModeSolved: false,
   totalAttempts: 0,
   latestStatus: null,
   dueModes: [],
@@ -193,7 +197,12 @@ function resolveMasterySummary(problem: ProblemListItem): ProblemMasterySummary 
   return problem.masterySummary;
 }
 
-function masteryStatusLabel(status: MasterySummaryStatus): string {
+function masteryStatusLabel(summary: ProblemMasterySummary): string {
+  if (summary.isSolved && summary.overallStatus === "UNTOUCHED") {
+    return "已做题";
+  }
+
+  const status = summary.overallStatus;
   if (status === "UNTOUCHED") {
     return "未做题";
   }
@@ -209,7 +218,12 @@ function masteryStatusLabel(status: MasterySummaryStatus): string {
   return "待复习";
 }
 
-function masteryStatusClass(status: MasterySummaryStatus): string {
+function masteryStatusClass(summary: ProblemMasterySummary): string {
+  if (summary.isSolved && summary.overallStatus === "UNTOUCHED") {
+    return "lc-status-ac";
+  }
+
+  const status = summary.overallStatus;
   if (status === "UNTOUCHED") {
     return "border-[var(--lc-border-soft)] bg-transparent text-[var(--lc-text-muted)]";
   }
@@ -232,10 +246,15 @@ function dueModeLabel(mode: "core" | "acm"): string {
 function reviewSignal(summary: ProblemMasterySummary): string {
   if (summary.dueModes.length > 0 && summary.overdueDays !== null) {
     const modes = summary.dueModes.map((mode) => dueModeLabel(mode)).join("/");
+    const prefix = summary.isSingleModeSolved ? "单模式已做题，" : "";
     if (summary.overdueDays <= 0) {
-      return `今天复习：${modes}`;
+      return `${prefix}今天复习：${modes}`;
     }
-    return `已逾期 ${summary.overdueDays} 天：${modes}`;
+    return `${prefix}已逾期 ${summary.overdueDays} 天：${modes}`;
+  }
+
+  if (summary.isSingleModeSolved) {
+    return `单模式已做题：${summary.solvedModes.map((mode) => dueModeLabel(mode)).join("/")}`;
   }
 
   if (summary.nextReviewAt) {
@@ -315,8 +334,8 @@ export default async function ProblemsPage({ searchParams }: Props) {
                     <div className="flex flex-col gap-3 md:grid md:grid-cols-[minmax(0,1.7fr)_110px_92px_260px] md:items-center">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className={`lc-badge border ${masteryStatusClass(masterySummary.overallStatus)}`}>
-                            {masteryStatusLabel(masterySummary.overallStatus)}
+                          <span className={`lc-badge border ${masteryStatusClass(masterySummary)}`}>
+                            {masteryStatusLabel(masterySummary)}
                           </span>
                           <span className={`text-sm font-semibold ${difficultyClass(problem.difficulty)} md:hidden`}>
                             {difficultyLabel(problem.difficulty)}

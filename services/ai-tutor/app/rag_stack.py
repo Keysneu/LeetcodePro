@@ -111,7 +111,7 @@ KNOWLEDGE_DOCUMENTS: tuple[dict[str, Any], ...] = (
         "source": "solution-structure",
         "tags": ("solution", "editorial", "structure"),
         "text": (
-            "题解输出结构：题意与约束、核心思路与不变式、复杂度、完整代码、常见错误与面试追问。"
+            "题解输出结构：题意与约束、核心思路与不变式、复杂度、Core 模式完整代码、ACM 模式完整代码、常见错误与面试追问。"
             "代码需与请求语言一致，避免省略关键实现。"
         ),
     },

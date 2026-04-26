@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import AiStreamPanel from "@/components/ai-stream-panel";
 import { splitAssistantDisplayContent } from "@/lib/ai-content-split";
 import { AI_PROVIDER_SYNC_EVENT, AiProvider, aiProviderLabel, getDefaultAiProvider, readPreferredAiProvider } from "@/lib/ai-provider";
 import { AI_CONFIG_SYNC_EVENT, listAiConfigs, type AiConfigDefaults, type AiConfigItem } from "@/lib/ai-config";
-import { consumeSseFrames, createStreamTextBatcher } from "@/lib/ai-stream";
+import { consumeAiSemanticStream, createStreamTextBatcher } from "@/lib/ai-stream";
 import { normalizeDisplayText, normalizeProblemStatementMarkdown } from "@/lib/output-display";
 import {
   EDITOR_SYNC_EVENT,
@@ -59,46 +59,6 @@ type SubmissionHistoryResponse = {
   items: SubmissionHistoryItem[];
 };
 
-type SolutionResponse = {
-  editorial?: string;
-  source?: string;
-  provider?: string;
-  sessionId?: string | null;
-};
-
-type SolutionSsePayload = {
-  sessionId?: string;
-  source?: string;
-  provider?: string;
-  stage?: string;
-  elapsedMs?: number;
-  transient?: boolean;
-  reasoningSummary?: string;
-  delta?: string;
-  text?: string;
-  editorial?: string;
-  error?: string;
-  message?: string;
-};
-
-type ReviewSsePayload = {
-  stage?: string;
-  elapsedMs?: number;
-  transient?: boolean;
-  reasoningSummary?: string;
-  delta?: string;
-  text?: string;
-  guidance?: string;
-  error?: string;
-  message?: string;
-  source?: string;
-  provider?: string;
-};
-
-type ReviewResponse = {
-  guidance?: string;
-};
-
 type ProblemNoteItem = {
   problemSlug: string;
   problemTitle: string;
@@ -134,6 +94,65 @@ type AiSelection = {
   value: string;
 };
 
+type SideTabDefinition = {
+  key: TabKey;
+  label: string;
+  icon: ReactNode;
+};
+
+function DescriptionTabIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[18px] w-[18px] fill-none stroke-current stroke-[1.9]">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 4.75h7.75L18.5 8.5v10.75a1.5 1.5 0 0 1-1.5 1.5h-10a1.5 1.5 0 0 1-1.5-1.5v-13a1.5 1.5 0 0 1 1.5-1.5Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 4.75V8.5H18.5M8.25 12h7.5M8.25 15.75h5.25" />
+    </svg>
+  );
+}
+
+function SubmissionTabIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[18px] w-[18px] fill-none stroke-current stroke-[1.9]">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 5.25a6.75 6.75 0 1 1-6.75 6.75" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 1.75v3.5M4.25 3.75l2.25 2.25M12 8.25V12l2.75 1.5" />
+    </svg>
+  );
+}
+
+function NoteSolutionTabIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[18px] w-[18px] fill-none stroke-current stroke-[1.9]">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 4.75h11a1.75 1.75 0 0 1 1.75 1.75v11a1.75 1.75 0 0 1-1.75 1.75h-11a1.75 1.75 0 0 1-1.75-1.75v-11A1.75 1.75 0 0 1 6.5 4.75Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 9h7M8.5 12h7M8.5 15h4" />
+    </svg>
+  );
+}
+
+function AiSolutionTabIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[18px] w-[18px] fill-none stroke-current stroke-[1.9]">
+      <path strokeLinecap="round" strokeLinejoin="round" d="m12 3.5 1.6 3.92 3.9 1.58-3.9 1.58L12 14.5l-1.58-3.92-3.92-1.58 3.92-1.58L12 3.5Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m17.5 13.5.97 2.28 2.28.97-2.28.97-.97 2.28-.97-2.28-2.28-.97 2.28-.97.97-2.28ZM6 14.25l.65 1.6 1.6.65-1.6.65L6 18.75l-.65-1.6-1.6-.65 1.6-.65.65-1.6Z" />
+    </svg>
+  );
+}
+
+function AiReviewTabIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[18px] w-[18px] fill-none stroke-current stroke-[1.9]">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 4.75a5.75 5.75 0 1 1 0 11.5 5.75 5.75 0 0 1 0-11.5Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m15 14.5 4.25 4.25M8.4 10.5l1.5 1.5 2.7-3.15" />
+    </svg>
+  );
+}
+
+const SIDE_TABS: ReadonlyArray<SideTabDefinition> = [
+  { key: "description", label: "描述", icon: <DescriptionTabIcon /> },
+  { key: "submissions", label: "提交记录", icon: <SubmissionTabIcon /> },
+  { key: "note-solution", label: "笔记题解", icon: <NoteSolutionTabIcon /> },
+  { key: "ai-solution", label: "AI题解", icon: <AiSolutionTabIcon /> },
+  { key: "ai-review", label: "AI判题", icon: <AiReviewTabIcon /> }
+] as const;
+
 function parseErrorMessage(payload: unknown): string {
   if (typeof payload === "string") {
     return payload;
@@ -162,6 +181,9 @@ function normalizeAiProvider(raw: unknown): AiProvider {
   const normalized = raw.trim().toLowerCase();
   if (normalized === "minimax") {
     return "minimax";
+  }
+  if (normalized === "deepseek") {
+    return "deepseek";
   }
 
   return "vllm";
@@ -264,33 +286,6 @@ function buildAiRequestPayload(selection: AiSelection): { aiConfigId?: string; p
 
   return { provider: normalizeAiProvider(selection.value) };
 }
-
-function parseSolutionSsePayload(raw: string): SolutionSsePayload {
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (typeof parsed === "object" && parsed !== null) {
-      return parsed as SolutionSsePayload;
-    }
-  } catch {
-    // fallback to raw text
-  }
-
-  return { delta: raw };
-}
-
-function parseReviewSsePayload(raw: string): ReviewSsePayload {
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (typeof parsed === "object" && parsed !== null) {
-      return parsed as ReviewSsePayload;
-    }
-  } catch {
-    // fallback to raw text
-  }
-
-  return { delta: raw };
-}
-
 
 function normalizeProblemMarkdown(markdown: string): string {
   return normalizeProblemStatementMarkdown(markdown).replace(/^\s*[\t ]+-\s+/gm, "- ");
@@ -930,14 +925,10 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
         throw new Error(normalizeSolutionErrorMessage(parseErrorMessage(fallbackPayload), selectionLabel));
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let doneReceived = false;
-      let streamError = "";
-
-      const applyFrame = (event: string, payload: SolutionSsePayload) => {
-        if (event === "meta") {
+      const streamResult = await consumeAiSemanticStream({
+        response,
+        contentField: "editorial",
+        onMeta(payload) {
           if (typeof payload.source === "string" && payload.source.length > 0) {
             setSolutionSource(payload.source);
           }
@@ -947,77 +938,30 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
           if (typeof payload.sessionId === "string" && payload.sessionId.length > 0) {
             setSolutionSessionId(payload.sessionId);
           }
-          return;
-        }
-
-        if (event === "phase") {
+        },
+        onPhase(payload) {
           const message = typeof payload.message === "string" && payload.message.length > 0 ? payload.message : "正在处理中。";
           setSolutionPhaseStatus((previous) => ({
             stage: typeof payload.stage === "string" && payload.stage.length > 0 ? payload.stage : "progress",
             message,
             elapsedMs: typeof payload.elapsedMs === "number" ? payload.elapsedMs : previous?.elapsedMs ?? 0
           }));
-          return;
-        }
-
-        if (event === "response.reasoning_summary_text.delta") {
-          const delta = typeof payload.delta === "string" ? payload.delta : "";
+        },
+        onReasoningDelta(delta) {
           streamTextBatcher.appendReasoning(delta);
-          return;
-        }
-
-        if (event === "response.output_text.delta") {
-          const delta = typeof payload.delta === "string" ? payload.delta : "";
+        },
+        onContentDelta(delta) {
           streamTextBatcher.appendContent(delta);
-          return;
-        }
-
-        if (event === "response.output_text.replace") {
-          const text = typeof payload.text === "string" ? payload.text : "";
-          if (text.length > 0) {
-            streamTextBatcher.replaceContent(text);
-          }
-          return;
-        }
-
-        if (event === "delta") {
-          const delta = typeof payload.delta === "string" ? payload.delta : "";
-          streamTextBatcher.appendContent(delta);
-          return;
-        }
-
-        if (event === "error") {
-          const rawMessage =
-            (typeof payload.message === "string" && payload.message.length > 0
-              ? payload.message
-              : typeof payload.error === "string" && payload.error.length > 0
-                ? payload.error
-                : "题解生成失败，请稍后重试。");
-          const message = normalizeSolutionErrorMessage(rawMessage, selectionLabel);
-          streamError = message;
-          setSolutionError(message);
-          if (typeof payload.source === "string" && payload.source.length > 0) {
-            setSolutionSource(payload.source);
-          }
-          if (typeof payload.provider === "string" && payload.provider.length > 0) {
-            setSolutionResolvedProvider(payload.provider);
-          }
-          if (typeof payload.sessionId === "string" && payload.sessionId.length > 0) {
-            setSolutionSessionId(payload.sessionId);
-          }
-          return;
-        }
-
-        if (event === "response.completed") {
-          doneReceived = true;
+        },
+        onContentReplace(text) {
+          streamTextBatcher.replaceContent(text);
+        },
+        onCompleted(payload) {
           setSolutionPhaseStatus((previous) => ({
             stage: "done",
             message: "题解结果已整理完成。",
             elapsedMs: previous?.elapsedMs ?? 0
           }));
-          if (typeof payload.editorial === "string" && payload.editorial.length > 0) {
-            streamTextBatcher.replaceContent(payload.editorial);
-          }
           if (typeof payload.reasoningSummary === "string" && payload.reasoningSummary.length > 0) {
             streamTextBatcher.replaceReasoning(payload.reasoningSummary);
           }
@@ -1031,27 +975,10 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
             setSolutionSessionId(payload.sessionId);
           }
           streamTextBatcher.flushNow();
-          return;
-        }
-
-        if (event === "done") {
-          doneReceived = true;
-          setSolutionPhaseStatus((previous) => ({
-            stage: "done",
-            message: "题解结果已整理完成。",
-            elapsedMs: previous?.elapsedMs ?? 0
-          }));
-          if (typeof payload.editorial === "string" && payload.editorial.length > 0) {
-            streamTextBatcher.replaceContent(payload.editorial);
-          }
-          if (typeof payload.reasoningSummary === "string" && payload.reasoningSummary.length > 0) {
-            streamTextBatcher.replaceReasoning(payload.reasoningSummary);
-          }
-          if (typeof payload.error === "string" && payload.error.length > 0) {
-            const message = normalizeSolutionErrorMessage(payload.error, selectionLabel);
-            streamError = message;
-            setSolutionError(message);
-          }
+        },
+        onError(message, payload) {
+          const normalized = normalizeSolutionErrorMessage(message || "题解生成失败，请稍后重试。", selectionLabel);
+          setSolutionError(normalized);
           if (typeof payload.source === "string" && payload.source.length > 0) {
             setSolutionSource(payload.source);
           }
@@ -1061,83 +988,14 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
           if (typeof payload.sessionId === "string" && payload.sessionId.length > 0) {
             setSolutionSessionId(payload.sessionId);
           }
-          streamTextBatcher.flushNow();
         }
-      };
+      });
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) {
-          break;
-        }
-
-        buffer += decoder.decode(value, { stream: true });
-        const parsed = consumeSseFrames(buffer);
-        buffer = parsed.rest;
-        for (const frame of parsed.frames) {
-          applyFrame(frame.event, parseSolutionSsePayload(frame.data));
-        }
-      }
-
-      buffer += decoder.decode();
-      const parsed = consumeSseFrames(buffer);
-      buffer = parsed.rest;
-      for (const frame of parsed.frames) {
-        applyFrame(frame.event, parseSolutionSsePayload(frame.data));
-      }
-
-      if (buffer.trim().length > 0) {
-        const tailFrames = consumeSseFrames(`${buffer.trim()}\n\n`).frames;
-        for (const frame of tailFrames) {
-          applyFrame(frame.event, parseSolutionSsePayload(frame.data));
-        }
-      }
       streamTextBatcher.flushNow();
-
-      const shouldFetchFallback = (streamTextBatcher.getContent().length === 0 || !doneReceived) && streamError.length === 0;
-      if (shouldFetchFallback) {
-        const fallback = await fetch(`${apiBaseUrl}/api/ai/solution`, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json"
-          },
-          body: JSON.stringify({
-            problemSlug: problem.slug,
-            ...(selectedReplaySubmissionId ? { submissionId: selectedReplaySubmissionId } : {}),
-            problemTitle: problem.title,
-            modeSupport: problem.modeSupport,
-            ...aiRequestPayload,
-            preferredLanguage: "cpp",
-            description: problem.description,
-            sampleInput: problem.sampleInput,
-            sampleOutput: problem.sampleOutput
-          })
-        });
-        const fallbackPayload = (await fallback.json()) as unknown;
-        if (!fallback.ok) {
-          throw new Error(normalizeSolutionErrorMessage(parseErrorMessage(fallbackPayload), selectionLabel));
-        }
-        const data = fallbackPayload as SolutionResponse;
-        const fallbackEditorial = data.editorial ?? "";
-        let replacedWithFallback = false;
-        if (fallbackEditorial.length > streamTextBatcher.getContent().length) {
-          streamTextBatcher.replaceContent(fallbackEditorial);
-          streamTextBatcher.flushNow();
-          replacedWithFallback = true;
-        } else if (streamTextBatcher.getContent().length === 0) {
-          streamTextBatcher.replaceContent("暂未生成题解，请稍后重试。");
-          streamTextBatcher.flushNow();
-        }
-
-        if (replacedWithFallback && data.source && data.source.length > 0) {
-          setSolutionSource(data.source);
-        }
-        if (replacedWithFallback && data.provider && data.provider.length > 0) {
-          setSolutionResolvedProvider(data.provider);
-        }
-        if (replacedWithFallback && data.sessionId && data.sessionId.length > 0) {
-          setSolutionSessionId(data.sessionId);
-        }
+      if (streamResult.error) {
+        setSolutionError(normalizeSolutionErrorMessage(streamResult.error, selectionLabel));
+      } else if (!streamResult.doneReceived || streamResult.content.length === 0) {
+        setSolutionError("题解生成失败，请稍后重试。");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "题解生成失败，请稍后重试。";
@@ -1186,7 +1044,6 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
       elapsedMs: 0
     });
     const aiRequestPayload = buildAiRequestPayload(reviewSelection);
-    const legacyProvider = reviewSelection.mode === "provider" ? normalizeAiProvider(reviewSelection.value) : null;
     const streamTextBatcher = createStreamTextBatcher({
       onReasoningChange: setReviewReasoningSummary,
       onContentChange: setReviewGuidance
@@ -1223,176 +1080,47 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
         throw new Error(parseErrorMessage(fallbackPayload));
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let doneReceived = false;
-
-      const applyFrame = (event: string, payload: ReviewSsePayload) => {
-        if (event === "meta") {
-          return;
-        }
-
-        if (event === "phase") {
+      const streamResult = await consumeAiSemanticStream({
+        response,
+        contentField: "guidance",
+        onPhase(payload) {
           const message = typeof payload.message === "string" && payload.message.length > 0 ? payload.message : "正在处理中。";
           setReviewPhaseStatus((previous) => ({
             stage: typeof payload.stage === "string" && payload.stage.length > 0 ? payload.stage : "progress",
             message,
             elapsedMs: typeof payload.elapsedMs === "number" ? payload.elapsedMs : previous?.elapsedMs ?? 0
           }));
-          return;
-        }
-
-        if (event === "response.reasoning_summary_text.delta") {
-          const delta = typeof payload.delta === "string" ? payload.delta : "";
+        },
+        onReasoningDelta(delta) {
           streamTextBatcher.appendReasoning(delta);
-          return;
-        }
-
-        if (event === "response.output_text.delta") {
-          const delta = typeof payload.delta === "string" ? payload.delta : "";
+        },
+        onContentDelta(delta) {
           streamTextBatcher.appendContent(delta);
-          return;
-        }
-
-        if (event === "response.output_text.replace") {
-          const text = typeof payload.text === "string" ? payload.text : "";
-          if (text.length > 0) {
-            streamTextBatcher.replaceContent(text);
-          }
-          return;
-        }
-
-        if (event === "delta") {
-          const delta = typeof payload.delta === "string" ? payload.delta : "";
-          streamTextBatcher.appendContent(delta);
-          return;
-        }
-
-        if (event === "response.completed") {
-          doneReceived = true;
+        },
+        onContentReplace(text) {
+          streamTextBatcher.replaceContent(text);
+        },
+        onCompleted(payload) {
           setReviewPhaseStatus((previous) => ({
             stage: "done",
             message: "判题结果已整理完成。",
             elapsedMs: previous?.elapsedMs ?? 0
           }));
-          if (typeof payload.guidance === "string" && payload.guidance.length > 0) {
-            streamTextBatcher.replaceContent(payload.guidance);
-          }
           if (typeof payload.reasoningSummary === "string" && payload.reasoningSummary.length > 0) {
             streamTextBatcher.replaceReasoning(payload.reasoningSummary);
           }
           streamTextBatcher.flushNow();
-          return;
+        },
+        onError(message) {
+          setReviewError(message || "AI 判题失败，请稍后重试。");
         }
+      });
 
-        if (event === "done") {
-          doneReceived = true;
-          setReviewPhaseStatus((previous) => ({
-            stage: "done",
-            message: "判题结果已整理完成。",
-            elapsedMs: previous?.elapsedMs ?? 0
-          }));
-          if (typeof payload.error === "string" && payload.error.length > 0) {
-            setReviewError(payload.error);
-          }
-          if (typeof payload.guidance === "string" && payload.guidance.length > 0) {
-            streamTextBatcher.replaceContent(payload.guidance);
-          }
-          if (typeof payload.reasoningSummary === "string" && payload.reasoningSummary.length > 0) {
-            streamTextBatcher.replaceReasoning(payload.reasoningSummary);
-          }
-          streamTextBatcher.flushNow();
-          return;
-        }
-
-        if (event === "error") {
-          const message =
-            (typeof payload.message === "string" && payload.message.length > 0
-              ? payload.message
-              : typeof payload.error === "string" && payload.error.length > 0
-                ? payload.error
-                : "AI 判题失败，请稍后重试。");
-          setReviewError(message);
-        }
-      };
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) {
-          break;
-        }
-
-        buffer += decoder.decode(value, { stream: true });
-        const parsed = consumeSseFrames(buffer);
-        buffer = parsed.rest;
-        for (const frame of parsed.frames) {
-          applyFrame(frame.event, parseReviewSsePayload(frame.data));
-        }
-      }
-
-      buffer += decoder.decode();
-      const parsed = consumeSseFrames(buffer);
-      buffer = parsed.rest;
-      for (const frame of parsed.frames) {
-        applyFrame(frame.event, parseReviewSsePayload(frame.data));
-      }
-
-      if (buffer.trim().length > 0) {
-        const tailFrames = consumeSseFrames(`${buffer.trim()}\n\n`).frames;
-        for (const frame of tailFrames) {
-          applyFrame(frame.event, parseReviewSsePayload(frame.data));
-        }
-      }
       streamTextBatcher.flushNow();
-
-      if (legacyProvider === "minimax" || streamTextBatcher.getContent().length === 0 || !doneReceived) {
-        try {
-          const fallback = await fetch(`${apiBaseUrl}/api/ai/bug-find`, {
-            method: "POST",
-            headers: {
-              "content-type": "application/json"
-            },
-            body: JSON.stringify({
-              problemSlug: problem.slug,
-              ...(currentSubmission.source === "submission" && currentSubmission.submissionId
-                ? { submissionId: currentSubmission.submissionId }
-                : {}),
-              ...aiRequestPayload,
-              language: currentSubmission.language,
-              mode: currentSubmission.mode,
-              code: currentSubmission.code,
-              status: currentSubmission.status,
-              runtimeMs: currentSubmission.runtimeMs,
-              memoryKb: currentSubmission.memoryKb,
-              passedCount: currentSubmission.passedCount,
-              totalCount: currentSubmission.totalCount,
-              errorMessage: currentSubmission.errorMessage,
-              failureCase: currentSubmission.failureCase ?? null,
-              failureSignals: currentSubmission.failureSignals ?? []
-            })
-          });
-
-          const fallbackPayload = (await fallback.json()) as unknown;
-          if (!fallback.ok) {
-            throw new Error(parseErrorMessage(fallbackPayload));
-          }
-
-          const fallbackData = fallbackPayload as ReviewResponse;
-          const fallbackGuidance = fallbackData.guidance ?? "";
-          if (fallbackGuidance.length > streamTextBatcher.getContent().length) {
-            streamTextBatcher.replaceContent(fallbackGuidance);
-            streamTextBatcher.flushNow();
-          } else if (streamTextBatcher.getContent().length === 0) {
-            streamTextBatcher.replaceContent("AI 暂未返回建议，请稍后重试。");
-            streamTextBatcher.flushNow();
-          }
-        } catch {
-          if (streamTextBatcher.getContent().length === 0) {
-            streamTextBatcher.replaceContent("AI 暂未返回建议，请稍后重试。");
-            streamTextBatcher.flushNow();
-          }
-        }
+      if (streamResult.error) {
+        setReviewError(streamResult.error);
+      } else if (!streamResult.doneReceived || streamResult.content.length === 0) {
+        setReviewError("AI 暂未返回建议，请稍后重试。");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "AI 判题失败，请稍后重试。";
@@ -1418,146 +1146,140 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
   }, [activeTab, loadProblemNote, noteLoaded, noteLoading]);
 
   return (
-    <section className="lc-card flex h-full min-h-[420px] flex-col overflow-hidden lg:min-h-0">
-      <div className="border-b bg-[var(--lc-surface-soft)] px-3 sm:px-4">
-        <div className="flex flex-wrap items-center gap-1 overflow-x-auto py-1">
-          <button type="button" className={`lc-tab ${activeTab === "description" ? "lc-tab-active" : ""}`} onClick={() => setActiveTab("description")}>
-            描述
-          </button>
-          <button type="button" className={`lc-tab ${activeTab === "submissions" ? "lc-tab-active" : ""}`} onClick={() => setActiveTab("submissions")}>
-            提交记录
-          </button>
-          <button
-            type="button"
-            className={`lc-tab ${activeTab === "note-solution" ? "lc-tab-active" : ""}`}
-            onClick={() => setActiveTab("note-solution")}
-          >
-            笔记题解
-          </button>
-          <button
-            type="button"
-            className={`lc-tab ${activeTab === "ai-solution" ? "lc-tab-active" : ""}`}
-            onClick={() => setActiveTab("ai-solution")}
-          >
-            AI题解
-          </button>
-          <button
-            type="button"
-            className={`lc-tab ${activeTab === "ai-review" ? "lc-tab-active" : ""}`}
-            onClick={() => setActiveTab("ai-review")}
-          >
-            AI判题
-          </button>
+    <section className="lc-card flex h-full min-h-[360px] flex-col overflow-hidden lg:min-h-0">
+      <div className="border-b border-[var(--lc-border-soft)] px-3 py-2.5 sm:px-4">
+        <div className="lc-scrollbar-hidden overflow-x-auto">
+          <div className="lc-side-tabs-shell">
+            {SIDE_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                className={`lc-side-tab ${activeTab === tab.key ? "lc-side-tab-active" : ""}`}
+                onClick={() => setActiveTab(tab.key)}
+                aria-pressed={activeTab === tab.key}
+              >
+                <span className="lc-side-tab-icon">{tab.icon}</span>
+                <span className="truncate">{tab.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col p-4 text-sm sm:p-5">
+      <div className="flex min-h-0 flex-1 flex-col px-3 pb-3 pt-2.5 text-sm sm:px-4 sm:pb-4">
         {activeTab === "description" ? (
-          <>
-            <div className="space-y-2 border-b pb-4">
-              <h1 className="text-lg font-semibold text-[var(--lc-text)]">
-                {problem.leetcodeId ? `${problem.leetcodeId}. ` : ""}
-                {problem.titleZh ?? problem.title}
-              </h1>
-              <div data-testid="problem-meta-badges" className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="lc-badge border bg-[var(--lc-surface-soft)] text-[var(--lc-text-muted)]">{problem.slug}</span>
-                <span className="lc-badge border bg-[var(--lc-surface-soft)] text-[var(--lc-accent)]">{modeSupportLabel(problem.modeSupport)}</span>
-                <span className="lc-badge border bg-[var(--lc-surface-soft)] text-[var(--lc-text-muted)]">{difficultyLabel(problem.difficulty)}</span>
-                {problem.tags.map((tag) => (
-                  <span key={tag} className="lc-badge border bg-[var(--lc-surface-soft)] text-[var(--lc-text-muted)]">
-                    {tag}
-                  </span>
-                ))}
+          <div className="lc-scrollbar-hidden min-h-0 flex-1 overflow-y-auto pr-1">
+            <div className="space-y-3 pb-1">
+              <div className="rounded-[16px] border bg-[var(--lc-surface-soft)] px-3.5 py-3">
+                <h1 className="text-base font-semibold leading-7 text-[var(--lc-text)] sm:text-[1.1rem]">
+                  {problem.leetcodeId ? `${problem.leetcodeId}. ` : ""}
+                  {problem.titleZh ?? problem.title}
+                </h1>
+                <div data-testid="problem-meta-badges" className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                  <span className="lc-badge border bg-[var(--lc-surface-soft)] text-[var(--lc-text-muted)]">{problem.slug}</span>
+                  <span className="lc-badge border bg-[var(--lc-surface-soft)] text-[var(--lc-accent)]">{modeSupportLabel(problem.modeSupport)}</span>
+                  <span className="lc-badge border bg-[var(--lc-surface-soft)] text-[var(--lc-text-muted)]">{difficultyLabel(problem.difficulty)}</span>
+                  {problem.tags.map((tag) => (
+                    <span key={tag} className="lc-badge border bg-[var(--lc-surface-soft)] text-[var(--lc-text-muted)]">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <div className="lc-scrollbar-hidden mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
-              <div className="space-y-4">
-                <div className="lc-markdown leading-7 text-[var(--lc-text)]">
+                <div className="lc-markdown rounded-[16px] border bg-[var(--lc-surface)] px-3.5 py-3 text-[14px] leading-6 text-[var(--lc-text)]">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{descriptionMarkdown}</ReactMarkdown>
                 </div>
-                <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3 text-xs">
-                  <p className="mb-1.5 font-semibold text-[var(--lc-text)]">输入说明</p>
-                  <pre className="whitespace-pre-wrap leading-6 text-[var(--lc-text-muted)]">
+                <div className="rounded-[14px] border bg-[var(--lc-surface-soft)] px-3.5 py-3 text-[11px]">
+                  <p className="mb-1 font-semibold text-[var(--lc-text)]">输入说明</p>
+                  <pre className="whitespace-pre-wrap leading-5 text-[var(--lc-text-muted)]">
                     {normalizeDisplayText(activeEditorMode === "acm" ? problem.acmInputSpec || "(无)" : problem.inputSpec || "(无)")}
                   </pre>
                 </div>
-                <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3 text-xs">
-                  <p className="mb-1.5 font-semibold text-[var(--lc-text)]">输出说明</p>
-                  <pre className="whitespace-pre-wrap leading-6 text-[var(--lc-text-muted)]">
+                <div className="rounded-[14px] border bg-[var(--lc-surface-soft)] px-3.5 py-3 text-[11px]">
+                  <p className="mb-1 font-semibold text-[var(--lc-text)]">输出说明</p>
+                  <pre className="whitespace-pre-wrap leading-5 text-[var(--lc-text-muted)]">
                     {normalizeDisplayText(activeEditorMode === "acm" ? problem.acmOutputSpec || "(无)" : problem.outputSpec || "(无)")}
                   </pre>
                 </div>
-                <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3 text-xs">
-                  <p className="mb-1.5 font-semibold text-[var(--lc-text)]">示例输入</p>
-                  <pre className="whitespace-pre-wrap leading-6 text-[var(--lc-text-muted)]">
+                <div className="rounded-[14px] border bg-[var(--lc-surface-soft)] px-3.5 py-3 text-[11px]">
+                  <p className="mb-1 font-semibold text-[var(--lc-text)]">示例输入</p>
+                  <pre className="whitespace-pre-wrap leading-5 text-[var(--lc-text-muted)]">
                     {normalizeDisplayText(activeEditorMode === "acm" ? problem.acmSampleInput || "(无)" : problem.sampleInput || "(无)")}
                   </pre>
                 </div>
-                <div className="rounded-lg border bg-[var(--lc-surface-soft)] p-3 text-xs">
-                  <p className="mb-1.5 font-semibold text-[var(--lc-text)]">示例输出</p>
-                  <pre className="whitespace-pre-wrap leading-6 text-[var(--lc-text-muted)]">
+                <div className="rounded-[14px] border bg-[var(--lc-surface-soft)] px-3.5 py-3 text-[11px]">
+                  <p className="mb-1 font-semibold text-[var(--lc-text)]">示例输出</p>
+                  <pre className="whitespace-pre-wrap leading-5 text-[var(--lc-text-muted)]">
                     {normalizeDisplayText(activeEditorMode === "acm" ? problem.acmSampleOutput || "(无)" : problem.sampleOutput || "(无)")}
                   </pre>
                 </div>
               </div>
             </div>
-          </>
         ) : null}
 
         {activeTab === "submissions" ? (
           <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm text-[var(--lc-text-muted)]">最近 30 条提交记录</p>
+            <div className="space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border bg-[var(--lc-surface-soft)] px-3.5 py-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-[var(--lc-text)]">提交记录</p>
+                  <p className="text-xs text-[var(--lc-text-muted)]">最近 30 条提交，点击任意一条即可回放当时代码与结果。</p>
+                </div>
                 <button type="button" className="lc-btn-secondary h-8 px-3 text-xs" onClick={() => void loadHistory()} disabled={historyLoading}>
                   {historyLoading ? "刷新中..." : "刷新"}
                 </button>
               </div>
 
-              <div className="rounded-lg border">
+              <div className="space-y-3">
                 {historyItems.length === 0 ? (
-                  <p className="p-3 text-sm text-[var(--lc-text-muted)]">暂无提交记录。</p>
+                  <div className="rounded-[14px] border bg-[var(--lc-surface-soft)] px-3.5 py-3 text-sm text-[var(--lc-text-muted)]">暂无提交记录。</div>
                 ) : (
-                  <div className="divide-y">
-                    {historyItems.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        className="block w-full space-y-1 p-3 text-left text-xs transition-colors hover:bg-[var(--lc-surface-soft)]"
-                        onClick={() => {
-                          setPendingReplayItem(item);
-                          setIsReplayDialogOpen(true);
-                        }}
-                        disabled={replayLoadingId !== null}
-                      >
-                        <p className="font-mono text-[var(--lc-text-muted)]">{item.id}</p>
-                        <p className="flex flex-wrap items-center gap-2">
-                          <span className={`rounded border px-2 py-0.5 font-semibold ${statusClass(item.status)}`}>{item.status}</span>
-                          <span className="text-[var(--lc-text-muted)]">
-                            {item.language} / {item.mode}
-                          </span>
-                          <span className="text-[var(--lc-text-muted)]">
-                            {item.passedCount}/{item.totalCount} 用例
-                          </span>
-                        </p>
-                        <p className="text-[var(--lc-text-muted)]">
-                          {formatTime(item.createdAt)} · {item.runtimeMs ?? "-"} ms · {item.memoryKb ?? "-"} KB
-                        </p>
-                        <p className="text-[11px] text-[var(--lc-text-muted)]">
-                          {replayLoadingId === item.id ? "回放加载中..." : selectedReplaySubmissionId === item.id ? "当前回放记录" : "点击回放该次提交"}
-                        </p>
-                        {item.errorMessage ? (
-                          <div className="space-y-1">
-                            <p className="text-[var(--lc-danger)]">错误：</p>
-                            <pre className="max-h-[160px] overflow-auto whitespace-pre-wrap break-all rounded border border-[var(--lc-border)] bg-[var(--lc-surface)] p-2 text-[11px] text-[var(--lc-danger)]">
-                              {item.errorMessage}
-                            </pre>
-                          </div>
-                        ) : null}
-                      </button>
-                    ))}
-                  </div>
+                  historyItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`block w-full rounded-[14px] border px-3.5 py-3 text-left text-xs transition duration-200 hover:-translate-y-[1px] ${
+                        selectedReplaySubmissionId === item.id
+                          ? "border-[var(--lc-accent)] bg-[var(--lc-surface-soft)]"
+                          : "border-[var(--lc-border)] bg-[var(--lc-surface)] hover:bg-[var(--lc-surface-soft)]"
+                      }`}
+                      onClick={() => {
+                        setPendingReplayItem(item);
+                        setIsReplayDialogOpen(true);
+                      }}
+                      disabled={replayLoadingId !== null}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-2">
+                          <p className="font-mono text-[10px] text-[var(--lc-text-muted)]">{item.id}</p>
+                          <p className="flex flex-wrap items-center gap-2">
+                            <span className={`rounded-[10px] border px-2 py-0.5 font-semibold ${statusClass(item.status)}`}>{item.status}</span>
+                            <span className="rounded-[10px] border border-[var(--lc-border-soft)] bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[10px] text-[var(--lc-text-muted)]">
+                              {item.language} / {item.mode}
+                            </span>
+                            <span className="rounded-[10px] border border-[var(--lc-border-soft)] bg-[var(--lc-surface-soft)] px-2 py-0.5 text-[10px] text-[var(--lc-text-muted)]">
+                              {item.passedCount}/{item.totalCount} 用例
+                            </span>
+                          </p>
+                        </div>
+                        <span className="rounded-[10px] border border-[var(--lc-border-soft)] bg-[var(--lc-surface-soft)] px-2.5 py-0.5 text-[10px] font-medium text-[var(--lc-text-muted)]">
+                          {replayLoadingId === item.id ? "回放加载中..." : selectedReplaySubmissionId === item.id ? "当前回放记录" : "点击回放"}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-[11px] text-[var(--lc-text-muted)]">
+                        {formatTime(item.createdAt)} · {item.runtimeMs ?? "-"} ms · {item.memoryKb ?? "-"} KB
+                      </p>
+                      {item.errorMessage ? (
+                        <div className="mt-2 space-y-1">
+                          <p className="text-[var(--lc-danger)]">错误：</p>
+                          <pre className="max-h-[160px] overflow-auto whitespace-pre-wrap break-all rounded-[12px] border border-[var(--lc-border)] bg-[var(--lc-surface-soft)] p-2 text-[11px] leading-5 text-[var(--lc-danger)]">
+                            {item.errorMessage}
+                          </pre>
+                        </div>
+                      ) : null}
+                    </button>
+                  ))
                 )}
               </div>
               {historyError ? <p className="text-sm text-[var(--lc-danger)]">{historyError}</p> : null}
@@ -1567,19 +1289,22 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
 
         {activeTab === "note-solution" ? (
           <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-            <div className="flex min-h-0 h-full flex-col space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-[var(--lc-text)]">我的题解笔记</p>
+            <div className="space-y-3 pb-1">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border bg-[var(--lc-surface-soft)] px-3.5 py-3">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-[var(--lc-text)]">我的题解笔记</p>
+                  <p className="text-xs text-[var(--lc-text-muted)]">优先展示你上传并自动匹配到当前题目的 Markdown 笔记。</p>
+                </div>
                 <button type="button" className="lc-btn-secondary h-8 px-3 text-xs" onClick={() => void loadProblemNote()} disabled={noteLoading}>
                   {noteLoading ? "刷新中..." : "刷新笔记"}
                 </button>
               </div>
 
-              <div className="lc-scrollbar-hidden min-h-0 flex-1 overflow-y-auto rounded-lg border bg-[var(--lc-surface-soft)] p-3">
+              <div className="rounded-[16px] border bg-[var(--lc-surface)] px-3.5 py-3">
                 {noteLoading ? (
                   <p className="text-sm text-[var(--lc-text-muted)]">正在加载笔记...</p>
                 ) : problemNote ? (
-                  <div className="lc-markdown text-sm text-[var(--lc-text)]">
+                  <div className="lc-markdown text-sm leading-6 text-[var(--lc-text)]">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{problemNote.contentMd}</ReactMarkdown>
                   </div>
                 ) : (
@@ -1588,7 +1313,7 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
               </div>
 
               {problemNote ? (
-                <p className="text-xs text-[var(--lc-text-muted)]">
+                <p className="rounded-[12px] border bg-[var(--lc-surface-soft)] px-3 py-2 text-[11px] text-[var(--lc-text-muted)]">
                   来源：{problemNote.sourceFilename} · 匹配段落：{problemNote.matchedHeading} · 更新时间：{formatTime(problemNote.updatedAt)}
                 </p>
               ) : null}
@@ -1598,47 +1323,41 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
         ) : null}
 
         {activeTab === "ai-solution" ? (
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-            <div className="flex min-h-0 h-full flex-col space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-[var(--lc-text)]">AI题解</p>
-                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-                  <select
-                    className="lc-select h-8 min-w-[130px] flex-1 text-xs sm:flex-none"
-                    value={serializeAiSelection(solutionSelection)}
-                    onChange={(event) => handleSolutionSelectionChange(parseAiSelection(event.target.value))}
-                  >
-                    {aiConfigItems.map((item) => (
-                      <option key={`solution-config-${item.id}`} value={`config:${item.id}`}>
-                        {item.name}
-                      </option>
-                    ))}
-                    <option value="provider:vllm">系统 vLLM（兼容）</option>
-                    <option value="provider:minimax">系统 MiniMax（兼容）</option>
-                  </select>
-                  <button type="button" className="lc-btn-info h-8 px-3 text-xs" onClick={() => void generateSolution()} disabled={solutionLoading}>
-                    {solutionLoading ? "生成中..." : solutionLoaded ? "重新生成" : "生成题解"}
-                  </button>
-                </div>
-              </div>
-
-              <div className="lc-scrollbar-hidden min-h-0 flex-1 overflow-y-auto">
-                <AiStreamPanel
-                  title=""
-                  subtitle=""
-                  phaseStatus={solutionPhaseStatus}
-                  isLoading={solutionLoading}
-                  reasoningSummary={solutionDisplay.reasoning}
-                  reasoningMarkdown={solutionReasoningMarkdown}
-                  isThinkingCollapsed={isSolutionThinkingCollapsed}
-                  onThinkingCollapsedChange={setIsSolutionThinkingCollapsed}
-                  isThinkingExpanded={isSolutionThinkingExpanded}
-                  onThinkingExpandedChange={setIsSolutionThinkingExpanded}
-                  content={solutionDisplay.answer}
-                  contentMarkdown={solutionMarkdown}
-                  emptyText={selectedReplaySubmissionId ? "该提交暂无 AI 题解，点击“生成题解”手动生成。" : "点击“生成题解”后可查看 AI 补充讲解。"}
-                />
-              </div>
+          <div className="flex min-h-0 flex-1 flex-col pr-1">
+            <div className="flex min-h-0 flex-1 flex-col gap-3">
+              <AiStreamPanel
+                headerActions={
+                  <>
+                    <select
+                      className="lc-ai-select flex-1 sm:flex-none"
+                      value={serializeAiSelection(solutionSelection)}
+                      onChange={(event) => handleSolutionSelectionChange(parseAiSelection(event.target.value))}
+                    >
+                      {aiConfigItems.map((item) => (
+                        <option key={`solution-config-${item.id}`} value={`config:${item.id}`}>
+                          {item.name}
+                        </option>
+                      ))}
+                      <option value="provider:vllm">系统 vLLM（兼容）</option>
+                      <option value="provider:minimax">系统 MiniMax（兼容）</option>
+                    </select>
+                    <button type="button" className="lc-ai-action min-w-[88px]" onClick={() => void generateSolution()} disabled={solutionLoading}>
+                      {solutionLoading ? "生成中..." : solutionLoaded ? "重新生成" : "生成题解"}
+                    </button>
+                  </>
+                }
+                phaseStatus={solutionPhaseStatus}
+                isLoading={solutionLoading}
+                reasoningSummary={solutionDisplay.reasoning}
+                reasoningMarkdown={solutionReasoningMarkdown}
+                isThinkingCollapsed={isSolutionThinkingCollapsed}
+                onThinkingCollapsedChange={setIsSolutionThinkingCollapsed}
+                isThinkingExpanded={isSolutionThinkingExpanded}
+                onThinkingExpandedChange={setIsSolutionThinkingExpanded}
+                content={solutionDisplay.answer}
+                contentMarkdown={solutionMarkdown}
+                emptyText={selectedReplaySubmissionId ? "该提交暂无 AI 题解，点击“生成题解”手动生成。" : "点击“生成题解”后可查看 AI 补充讲解。"}
+              />
 
               {solutionError ? <p className="text-sm text-[var(--lc-danger)]">{solutionError}</p> : null}
               {aiConfigError ? <p className="text-xs text-[var(--lc-danger)]">{aiConfigError}</p> : null}
@@ -1647,51 +1366,45 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
         ) : null}
 
         {activeTab === "ai-review" ? (
-          <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-            <div className="flex min-h-0 h-full flex-col space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-[var(--lc-text)]">AI判题</p>
-                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
-                  <select
-                    className="lc-select h-8 min-w-[130px] flex-1 text-xs sm:flex-none"
-                    value={serializeAiSelection(reviewSelection)}
-                    onChange={(event) => handleReviewSelectionChange(parseAiSelection(event.target.value))}
-                  >
-                    {aiConfigItems.map((item) => (
-                      <option key={`review-config-${item.id}`} value={`config:${item.id}`}>
-                        {item.name}
-                      </option>
-                    ))}
-                    <option value="provider:vllm">系统 vLLM（兼容）</option>
-                    <option value="provider:minimax">系统 MiniMax（兼容）</option>
-                  </select>
-                  <button type="button" className="lc-btn-info h-8 px-3 text-xs" onClick={() => void handleAiReview()} disabled={reviewLoading || !canRunAiReview}>
-                    {reviewLoading ? "分析中..." : "AI判题"}
-                  </button>
-                </div>
-              </div>
-
-              <div className="lc-scrollbar-hidden min-h-0 flex-1 overflow-y-auto">
-                <AiStreamPanel
-                  title=""
-                  subtitle=""
-                  phaseStatus={reviewPhaseStatus}
-                  isLoading={reviewLoading}
-                  reasoningSummary={reviewDisplay.reasoning}
-                  reasoningMarkdown={reviewReasoningMarkdown}
-                  isThinkingCollapsed={isReviewThinkingCollapsed}
-                  onThinkingCollapsedChange={setIsReviewThinkingCollapsed}
-                  isThinkingExpanded={isReviewThinkingExpanded}
-                  onThinkingExpandedChange={setIsReviewThinkingExpanded}
-                  content={reviewDisplay.answer}
-                  contentMarkdown={reviewMarkdown}
-                  emptyText={
-                    canRunAiReview
-                      ? "点击“AI判题”后可查看错误定位与改进建议。"
-                      : "暂无可分析结果，请先在右侧运行测试/提交代码，或在“提交记录”中回放一条提交。"
-                  }
-                />
-              </div>
+          <div className="flex min-h-0 flex-1 flex-col pr-1">
+            <div className="flex min-h-0 flex-1 flex-col gap-3">
+              <AiStreamPanel
+                headerActions={
+                  <>
+                    <select
+                      className="lc-ai-select flex-1 sm:flex-none"
+                      value={serializeAiSelection(reviewSelection)}
+                      onChange={(event) => handleReviewSelectionChange(parseAiSelection(event.target.value))}
+                    >
+                      {aiConfigItems.map((item) => (
+                        <option key={`review-config-${item.id}`} value={`config:${item.id}`}>
+                          {item.name}
+                        </option>
+                      ))}
+                      <option value="provider:vllm">系统 vLLM（兼容）</option>
+                      <option value="provider:minimax">系统 MiniMax（兼容）</option>
+                    </select>
+                    <button type="button" className="lc-ai-action min-w-[88px]" onClick={() => void handleAiReview()} disabled={reviewLoading || !canRunAiReview}>
+                      {reviewLoading ? "分析中..." : "AI判题"}
+                    </button>
+                  </>
+                }
+                phaseStatus={reviewPhaseStatus}
+                isLoading={reviewLoading}
+                reasoningSummary={reviewDisplay.reasoning}
+                reasoningMarkdown={reviewReasoningMarkdown}
+                isThinkingCollapsed={isReviewThinkingCollapsed}
+                onThinkingCollapsedChange={setIsReviewThinkingCollapsed}
+                isThinkingExpanded={isReviewThinkingExpanded}
+                onThinkingExpandedChange={setIsReviewThinkingExpanded}
+                content={reviewDisplay.answer}
+                contentMarkdown={reviewMarkdown}
+                emptyText={
+                  canRunAiReview
+                    ? "点击“AI判题”后可查看错误定位与改进建议。"
+                    : "暂无可分析结果，请先在右侧运行测试/提交代码，或在“提交记录”中回放一条提交。"
+                }
+              />
 
               {reviewError ? <p className="text-sm text-[var(--lc-danger)]">{reviewError}</p> : null}
               {aiConfigError ? <p className="text-xs text-[var(--lc-danger)]">{aiConfigError}</p> : null}

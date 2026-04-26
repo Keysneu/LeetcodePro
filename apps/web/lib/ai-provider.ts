@@ -1,4 +1,4 @@
-export type AiProvider = "vllm" | "minimax";
+export type AiProvider = "vllm" | "minimax" | "deepseek";
 
 const AI_PROVIDER_STORAGE_KEY = "leetcodepro.ai.provider";
 export const AI_PROVIDER_SYNC_EVENT = "leetcodepro:ai-provider-sync";
@@ -11,6 +11,9 @@ function normalizeAiProvider(raw: unknown): AiProvider {
   const normalized = raw.trim().toLowerCase();
   if (normalized === "minimax") {
     return "minimax";
+  }
+  if (normalized === "deepseek") {
+    return "deepseek";
   }
   return "vllm";
 }
@@ -37,6 +40,9 @@ export function savePreferredAiProvider(provider: AiProvider): void {
 export function aiProviderLabel(provider: AiProvider): string {
   if (provider === "minimax") {
     return "MiniMax";
+  }
+  if (provider === "deepseek") {
+    return "DeepSeek";
   }
   return "vLLM";
 }

@@ -42,12 +42,16 @@ type AiTutorResponse = {
   guidance?: string;
   source?: string;
   provider?: string;
+  providerKind?: string;
+  model?: string;
 };
 
 type AiTutorSolutionResponse = {
   editorial?: string;
   source?: string;
   provider?: string;
+  providerKind?: string;
+  model?: string;
 };
 
 type AiMessageRole = "user" | "assistant" | "system";
@@ -125,15 +129,20 @@ type AiTutorSolutionBody = SolutionBody & {
 };
 
 const AI_TUTOR_TIMEOUT_MS = Number(process.env.AI_TUTOR_TIMEOUT_MS ?? 12000);
-const AI_TUTOR_MINIMAX_TIMEOUT_MS = Number(process.env.AI_TUTOR_MINIMAX_TIMEOUT_MS ?? 90000);
 const AI_TUTOR_REVIEW_TIMEOUT_MS = Number(process.env.AI_TUTOR_REVIEW_TIMEOUT_MS ?? 30000);
-const AI_TUTOR_REVIEW_MINIMAX_TIMEOUT_MS = Number(
-  process.env.AI_TUTOR_REVIEW_MINIMAX_TIMEOUT_MS ?? AI_TUTOR_MINIMAX_TIMEOUT_MS
+const AI_TUTOR_SOLUTION_TIMEOUT_MS = Number(
+  process.env.AI_TUTOR_SOLUTION_TIMEOUT_MS ?? process.env.AI_TUTOR_SOLUTION_MINIMAX_TIMEOUT_MS ?? 300000
 );
-const AI_TUTOR_SOLUTION_TIMEOUT_MS = Number(process.env.AI_TUTOR_SOLUTION_TIMEOUT_MS ?? AI_TUTOR_TIMEOUT_MS);
-const AI_TUTOR_SOLUTION_MINIMAX_TIMEOUT_MS = Number(
-  process.env.AI_TUTOR_SOLUTION_MINIMAX_TIMEOUT_MS ?? 210000
+const AI_TUTOR_CUSTOM_CONFIG_TIMEOUT_MS = Number(
+  process.env.AI_TUTOR_CUSTOM_CONFIG_TIMEOUT_MS ?? 90000
 );
+const AI_TUTOR_CUSTOM_CONFIG_REVIEW_TIMEOUT_MS = Number(
+  process.env.AI_TUTOR_CUSTOM_CONFIG_REVIEW_TIMEOUT_MS ?? AI_TUTOR_CUSTOM_CONFIG_TIMEOUT_MS
+);
+const AI_TUTOR_CUSTOM_CONFIG_SOLUTION_TIMEOUT_MS = Number(
+  process.env.AI_TUTOR_CUSTOM_CONFIG_SOLUTION_TIMEOUT_MS ?? 300000
+);
+const OPENAI_COMPATIBLE_PROVIDER_KIND = "openai_compatible";
 
 type SseResponse = {
   status(code: number): SseResponse;
@@ -258,23 +267,23 @@ async function readUpstreamErrorMessage(response: Response, fallbackMessage: str
   return fallbackMessage;
 }
 
-function resolveAiTutorTimeoutMs(provider: AiProvider | null): number {
-  if (provider === "minimax") {
-    return AI_TUTOR_MINIMAX_TIMEOUT_MS;
+function resolveAiTutorTimeoutMs(_provider: AiProvider | null, hasCustomConfig = false): number {
+  if (hasCustomConfig) {
+    return AI_TUTOR_CUSTOM_CONFIG_TIMEOUT_MS;
   }
   return AI_TUTOR_TIMEOUT_MS;
 }
 
-function resolveAiTutorReviewTimeoutMs(provider: AiProvider | null): number {
-  if (provider === "minimax") {
-    return AI_TUTOR_REVIEW_MINIMAX_TIMEOUT_MS;
+function resolveAiTutorReviewTimeoutMs(_provider: AiProvider | null, hasCustomConfig = false): number {
+  if (hasCustomConfig) {
+    return AI_TUTOR_CUSTOM_CONFIG_REVIEW_TIMEOUT_MS;
   }
   return AI_TUTOR_REVIEW_TIMEOUT_MS;
 }
 
-function resolveAiTutorSolutionTimeoutMs(provider: AiProvider | null): number {
-  if (provider === "minimax") {
-    return AI_TUTOR_SOLUTION_MINIMAX_TIMEOUT_MS;
+function resolveAiTutorSolutionTimeoutMs(_provider: AiProvider | null, hasCustomConfig = false): number {
+  if (hasCustomConfig) {
+    return AI_TUTOR_CUSTOM_CONFIG_SOLUTION_TIMEOUT_MS;
   }
   return AI_TUTOR_SOLUTION_TIMEOUT_MS;
 }
@@ -361,12 +370,18 @@ export class AiController {
   async review(@Body() body: ReviewBody) {
     const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? "http://localhost:8000";
     const userId = await getOrCreateDemoUserId();
-    const resolvedConfig = await resolveAiRuntimeConfigForRequest(userId, "review", body.aiConfigId);
+    const requestedProvider = normalizeAiProvider(body.provider);
+    const resolvedConfig = await resolveAiRuntimeConfigForRequest(
+      userId,
+      "review",
+      body.aiConfigId,
+      requestedProvider !== null
+    );
     if (resolvedConfig.kind === "invalid") {
       throw new BadRequestException(resolvedConfig.message);
     }
 
-    let provider: AiProvider | null = normalizeAiProvider(body.provider);
+    let provider: AiProvider | null = requestedProvider;
     let runtimeConfig: RuntimeAiConfig | null = null;
     if (resolvedConfig.kind === "configured") {
       runtimeConfig = resolvedConfig.runtimeConfig;
@@ -386,10 +401,11 @@ export class AiController {
 
     let guidance = fallbackMessage;
     let source = "api-fallback";
+    let model = "";
 
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), resolveAiTutorReviewTimeoutMs(provider));
+      const timeout = setTimeout(() => controller.abort(), resolveAiTutorReviewTimeoutMs(provider, runtimeConfig !== null));
 
       const response = await fetch(`${aiTutorBaseUrl}/bug-find`, {
         method: "POST",
@@ -407,6 +423,7 @@ export class AiController {
         guidance = json.guidance ?? fallbackMessage;
         source = json.source ?? "ai-tutor";
         provider = normalizeAiProvider(json.provider) ?? provider;
+        model = json.model ?? "";
       } else if (runtimeConfig) {
         const upstreamMessage = await readUpstreamErrorMessage(response, "runtime config request failed");
         throw new BadGatewayException(normalizeCustomConfigErrorMessage(upstreamMessage));
@@ -428,7 +445,9 @@ export class AiController {
       sessionId,
       guidance,
       source,
-      provider
+      provider,
+      providerKind: OPENAI_COMPATIBLE_PROVIDER_KIND,
+      ...(model ? { model } : {})
     };
   }
 
@@ -441,7 +460,13 @@ export class AiController {
   async reviewStream(@Body() body: ReviewBody, @Res() res: SseResponse): Promise<void> {
     const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? "http://localhost:8000";
     const userId = await getOrCreateDemoUserId();
-    const resolvedConfig = await resolveAiRuntimeConfigForRequest(userId, "review", body.aiConfigId);
+    const requestedProvider = normalizeAiProvider(body.provider);
+    const resolvedConfig = await resolveAiRuntimeConfigForRequest(
+      userId,
+      "review",
+      body.aiConfigId,
+      requestedProvider !== null
+    );
     if (resolvedConfig.kind === "invalid") {
       res.status(200);
       res.setHeader("content-type", "text/event-stream; charset=utf-8");
@@ -455,7 +480,7 @@ export class AiController {
       return;
     }
 
-    let provider: AiProvider | null = normalizeAiProvider(body.provider);
+    let provider: AiProvider | null = requestedProvider;
     let runtimeConfig: RuntimeAiConfig | null = null;
     if (resolvedConfig.kind === "configured") {
       runtimeConfig = resolvedConfig.runtimeConfig;
@@ -493,7 +518,8 @@ export class AiController {
     writeSseEvent(res, "meta", {
       sessionId: sessionId ?? "",
       source: "api-proxy",
-      provider
+      provider,
+      providerKind: OPENAI_COMPATIBLE_PROVIDER_KIND
     });
     writeSseEvent(res, "phase", {
       sessionId: sessionId ?? "",
@@ -506,9 +532,11 @@ export class AiController {
     let reasoningSummary = "";
     let streamError = "";
     let doneSent = false;
+    let providerKind = OPENAI_COMPATIBLE_PROVIDER_KIND;
+    let model = "";
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), resolveAiTutorReviewTimeoutMs(provider));
+    const timeout = setTimeout(() => controller.abort(), resolveAiTutorReviewTimeoutMs(provider, runtimeConfig !== null));
 
     res.on("close", () => {
       controller.abort();
@@ -541,10 +569,14 @@ export class AiController {
         if (frame.event === "meta") {
           source = readStringField(payload, "source") ?? source;
           provider = normalizeAiProvider(readStringField(payload, "provider")) ?? provider;
+          providerKind = readStringField(payload, "providerKind") ?? providerKind;
+          model = readStringField(payload, "model") ?? model;
           writeSseEvent(res, "meta", {
             sessionId: sessionId ?? "",
             source,
-            provider
+            provider,
+            providerKind,
+            ...(model ? { model } : {})
           });
           return;
         }
@@ -561,7 +593,9 @@ export class AiController {
           writeSseEvent(res, frame.event, {
             sessionId: sessionId ?? "",
             source,
-            provider
+            provider,
+            providerKind,
+            ...(model ? { model } : {})
           });
           return;
         }
@@ -574,6 +608,8 @@ export class AiController {
               sessionId: sessionId ?? "",
               source,
               provider,
+              providerKind,
+              ...(model ? { model } : {}),
               delta
             });
           }
@@ -588,6 +624,8 @@ export class AiController {
               sessionId: sessionId ?? "",
               source,
               provider,
+              providerKind,
+              ...(model ? { model } : {}),
               delta
             });
             writeSseEvent(res, "delta", { delta });
@@ -603,6 +641,8 @@ export class AiController {
               sessionId: sessionId ?? "",
               source,
               provider,
+              providerKind,
+              ...(model ? { model } : {}),
               text
             });
           }
@@ -621,6 +661,8 @@ export class AiController {
         if (frame.event === "response.completed") {
           source = readStringField(payload, "source") ?? source;
           provider = normalizeAiProvider(readStringField(payload, "provider")) ?? provider;
+          providerKind = readStringField(payload, "providerKind") ?? providerKind;
+          model = readStringField(payload, "model") ?? model;
           const finalGuidance = readStringField(payload, "guidance");
           const finalReasoningSummary = readStringField(payload, "reasoningSummary");
           if (finalGuidance && finalGuidance.length > 0) {
@@ -635,6 +677,8 @@ export class AiController {
             source,
             guidance,
             provider,
+            providerKind,
+            ...(model ? { model } : {}),
             ...(reasoningSummary ? { reasoningSummary } : {})
           });
           return;
@@ -643,6 +687,8 @@ export class AiController {
         if (frame.event === "done") {
           source = readStringField(payload, "source") ?? source;
           provider = normalizeAiProvider(readStringField(payload, "provider")) ?? provider;
+          providerKind = readStringField(payload, "providerKind") ?? providerKind;
+          model = readStringField(payload, "model") ?? model;
           const finalGuidance = readStringField(payload, "guidance");
           const finalReasoningSummary = readStringField(payload, "reasoningSummary");
           if (finalGuidance && finalGuidance.length > 0) {
@@ -657,6 +703,8 @@ export class AiController {
             source,
             guidance,
             provider,
+            providerKind,
+            ...(model ? { model } : {}),
             ...(reasoningSummary ? { reasoningSummary } : {})
           });
           doneSent = true;
@@ -707,6 +755,8 @@ export class AiController {
           sessionId: sessionId ?? "",
           source,
           provider,
+          providerKind,
+          ...(model ? { model } : {}),
           message: streamError
         });
         writeSseEvent(res, "done", {
@@ -714,6 +764,8 @@ export class AiController {
           source,
           guidance,
           provider,
+          providerKind,
+          ...(model ? { model } : {}),
           ...(reasoningSummary ? { reasoningSummary } : {}),
           error: streamError
         });
@@ -722,12 +774,22 @@ export class AiController {
         source = "api-fallback";
         guidance = fallbackMessage;
         reasoningSummary = "";
+        writeSseEvent(res, "response.output_text.delta", {
+          sessionId: sessionId ?? "",
+          source,
+          provider,
+          providerKind,
+          ...(model ? { model } : {}),
+          delta: guidance
+        });
         writeSseEvent(res, "delta", { delta: guidance });
         writeSseEvent(res, "done", {
           sessionId: sessionId ?? "",
           source,
           guidance,
           provider,
+          providerKind,
+          ...(model ? { model } : {}),
           ...(reasoningSummary ? { reasoningSummary } : {})
         });
         doneSent = true;
@@ -745,6 +807,8 @@ export class AiController {
             sessionId: sessionId ?? "",
             source,
             provider,
+            providerKind,
+            ...(model ? { model } : {}),
             message: streamError
           });
         }
@@ -753,6 +817,8 @@ export class AiController {
           source,
           guidance,
           provider,
+          providerKind,
+          ...(model ? { model } : {}),
           ...(reasoningSummary ? { reasoningSummary } : {}),
           ...(streamError ? { error: streamError } : {})
         });
@@ -760,6 +826,14 @@ export class AiController {
         if (guidance.length === 0) {
           source = "api-fallback";
           guidance = fallbackMessage;
+          writeSseEvent(res, "response.output_text.delta", {
+            sessionId: sessionId ?? "",
+            source,
+            provider,
+            providerKind,
+            ...(model ? { model } : {}),
+            delta: guidance
+          });
           writeSseEvent(res, "delta", { delta: guidance });
         }
 
@@ -768,6 +842,8 @@ export class AiController {
           source,
           guidance,
           provider,
+          providerKind,
+          ...(model ? { model } : {}),
           ...(reasoningSummary ? { reasoningSummary } : {})
         });
       }
@@ -785,12 +861,18 @@ export class AiController {
   async solution(@Body() body: SolutionBody) {
     const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? "http://localhost:8000";
     const userId = await getOrCreateDemoUserId();
-    const resolvedConfig = await resolveAiRuntimeConfigForRequest(userId, "solution", body.aiConfigId);
+    const requestedProvider = normalizeAiProvider(body.provider);
+    const resolvedConfig = await resolveAiRuntimeConfigForRequest(
+      userId,
+      "solution",
+      body.aiConfigId,
+      requestedProvider !== null
+    );
     if (resolvedConfig.kind === "invalid") {
       throw new BadRequestException(resolvedConfig.message);
     }
 
-    let provider: AiProvider | null = normalizeAiProvider(body.provider);
+    let provider: AiProvider | null = requestedProvider;
     let runtimeConfig: RuntimeAiConfig | null = null;
     if (resolvedConfig.kind === "configured") {
       runtimeConfig = resolvedConfig.runtimeConfig;
@@ -805,10 +887,11 @@ export class AiController {
 
     let editorial = "";
     let source = "ai-tutor";
+    let model = "";
 
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), resolveAiTutorSolutionTimeoutMs(provider));
+      const timeout = setTimeout(() => controller.abort(), resolveAiTutorSolutionTimeoutMs(provider, runtimeConfig !== null));
 
       const response = await fetch(`${aiTutorBaseUrl}/solution`, {
         method: "POST",
@@ -842,6 +925,7 @@ export class AiController {
       editorial = json.editorial ?? "";
       source = json.source ?? "ai-tutor";
       provider = normalizeAiProvider(json.provider) ?? provider;
+      model = json.model ?? "";
 
       if (editorial.trim().length === 0) {
         throw new BadGatewayException(normalizeSolutionErrorMessage(provider, null));
@@ -862,7 +946,9 @@ export class AiController {
       sessionId,
       editorial,
       source,
-      provider
+      provider,
+      providerKind: OPENAI_COMPATIBLE_PROVIDER_KIND,
+      ...(model ? { model } : {})
     };
   }
 
@@ -870,7 +956,13 @@ export class AiController {
   async solutionStream(@Body() body: SolutionBody, @Res() res: SseResponse): Promise<void> {
     const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? "http://localhost:8000";
     const userId = await getOrCreateDemoUserId();
-    const resolvedConfig = await resolveAiRuntimeConfigForRequest(userId, "solution", body.aiConfigId);
+    const requestedProvider = normalizeAiProvider(body.provider);
+    const resolvedConfig = await resolveAiRuntimeConfigForRequest(
+      userId,
+      "solution",
+      body.aiConfigId,
+      requestedProvider !== null
+    );
     if (resolvedConfig.kind === "invalid") {
       res.status(200);
       res.setHeader("content-type", "text/event-stream; charset=utf-8");
@@ -884,7 +976,7 @@ export class AiController {
       return;
     }
 
-    let provider: AiProvider | null = normalizeAiProvider(body.provider);
+    let provider: AiProvider | null = requestedProvider;
     let runtimeConfig: RuntimeAiConfig | null = null;
     if (resolvedConfig.kind === "configured") {
       runtimeConfig = resolvedConfig.runtimeConfig;
@@ -917,7 +1009,8 @@ export class AiController {
     writeSseEvent(res, "meta", {
       sessionId: sessionId ?? "",
       source: "api-proxy",
-      provider
+      provider,
+      providerKind: OPENAI_COMPATIBLE_PROVIDER_KIND
     });
 
     let source = "ai-tutor";
@@ -925,9 +1018,11 @@ export class AiController {
     let reasoningSummary = "";
     let streamError = "";
     let doneSent = false;
+    let providerKind = OPENAI_COMPATIBLE_PROVIDER_KIND;
+    let model = "";
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), resolveAiTutorSolutionTimeoutMs(provider));
+    const timeout = setTimeout(() => controller.abort(), resolveAiTutorSolutionTimeoutMs(provider, runtimeConfig !== null));
 
     res.on("close", () => {
       controller.abort();
@@ -991,10 +1086,14 @@ export class AiController {
           if (frame.event === "meta") {
             source = readStringField(payload, "source") ?? source;
             provider = normalizeAiProvider(readStringField(payload, "provider")) ?? provider;
+            providerKind = readStringField(payload, "providerKind") ?? providerKind;
+            model = readStringField(payload, "model") ?? model;
             writeSseEvent(res, "meta", {
               sessionId: sessionId ?? "",
               source,
-              provider
+              provider,
+              providerKind,
+              ...(model ? { model } : {})
             });
             continue;
           }
@@ -1011,7 +1110,9 @@ export class AiController {
             writeSseEvent(res, frame.event, {
               sessionId: sessionId ?? "",
               source,
-              provider
+              provider,
+              providerKind,
+              ...(model ? { model } : {})
             });
             continue;
           }
@@ -1024,6 +1125,8 @@ export class AiController {
                 sessionId: sessionId ?? "",
                 source,
                 provider,
+                providerKind,
+                ...(model ? { model } : {}),
                 delta
               });
             }
@@ -1038,9 +1141,27 @@ export class AiController {
                 sessionId: sessionId ?? "",
                 source,
                 provider,
+                providerKind,
+                ...(model ? { model } : {}),
                 delta
               });
               writeSseEvent(res, "delta", { delta });
+            }
+            continue;
+          }
+
+          if (frame.event === "response.output_text.replace") {
+            const text = readStringField(payload, "text") ?? (typeof payload === "string" ? payload : "");
+            if (text.length > 0) {
+              editorial = text;
+              writeSseEvent(res, "response.output_text.replace", {
+                sessionId: sessionId ?? "",
+                source,
+                provider,
+                providerKind,
+                ...(model ? { model } : {}),
+                text
+              });
             }
             continue;
           }
@@ -1057,6 +1178,8 @@ export class AiController {
           if (frame.event === "error") {
             source = readStringField(payload, "source") ?? "ai-tutor-error";
             provider = normalizeAiProvider(readStringField(payload, "provider")) ?? provider;
+            providerKind = readStringField(payload, "providerKind") ?? providerKind;
+            model = readStringField(payload, "model") ?? model;
             const message = normalizeSolutionErrorMessage(
               provider,
               readStringField(payload, "message") ?? readStringField(payload, "error")
@@ -1066,6 +1189,8 @@ export class AiController {
               sessionId: sessionId ?? "",
               source,
               provider,
+              providerKind,
+              ...(model ? { model } : {}),
               message
             });
             continue;
@@ -1074,6 +1199,8 @@ export class AiController {
           if (frame.event === "response.completed") {
             source = readStringField(payload, "source") ?? source;
             provider = normalizeAiProvider(readStringField(payload, "provider")) ?? provider;
+            providerKind = readStringField(payload, "providerKind") ?? providerKind;
+            model = readStringField(payload, "model") ?? model;
             const finalEditorial = readStringField(payload, "editorial");
             const finalReasoningSummary = readStringField(payload, "reasoningSummary");
             if (finalEditorial && finalEditorial.length > 0) {
@@ -1088,6 +1215,8 @@ export class AiController {
               source,
               editorial,
               provider,
+              providerKind,
+              ...(model ? { model } : {}),
               ...(reasoningSummary ? { reasoningSummary } : {})
             });
             continue;
@@ -1096,6 +1225,8 @@ export class AiController {
           if (frame.event === "done") {
             source = readStringField(payload, "source") ?? source;
             provider = normalizeAiProvider(readStringField(payload, "provider")) ?? provider;
+            providerKind = readStringField(payload, "providerKind") ?? providerKind;
+            model = readStringField(payload, "model") ?? model;
             const finalEditorial = readStringField(payload, "editorial");
             const finalError = readStringField(payload, "error");
             const finalReasoningSummary = readStringField(payload, "reasoningSummary");
@@ -1114,6 +1245,8 @@ export class AiController {
               source,
               editorial,
               provider,
+              providerKind,
+              ...(model ? { model } : {}),
               ...(reasoningSummary ? { reasoningSummary } : {}),
               ...(streamError ? { error: streamError } : {})
             });
@@ -1269,6 +1402,8 @@ export class AiController {
         sessionId: sessionId ?? "",
         source,
         provider,
+        providerKind,
+        ...(model ? { model } : {}),
         message: streamError
       });
       writeSseEvent(res, "done", {
@@ -1276,6 +1411,8 @@ export class AiController {
         source,
         editorial,
         provider,
+        providerKind,
+        ...(model ? { model } : {}),
         ...(reasoningSummary ? { reasoningSummary } : {}),
         error: streamError
       });
@@ -1294,6 +1431,8 @@ export class AiController {
           sessionId: sessionId ?? "",
           source,
           provider,
+          providerKind,
+          ...(model ? { model } : {}),
           message: streamError
         });
       }
@@ -1303,6 +1442,8 @@ export class AiController {
         source,
         editorial,
         provider,
+        providerKind,
+        ...(model ? { model } : {}),
         ...(reasoningSummary ? { reasoningSummary } : {}),
         ...(streamError ? { error: streamError } : {})
       });

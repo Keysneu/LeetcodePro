@@ -40,6 +40,18 @@ type UpdateDefaultsBody = {
   solutionConfigId?: string | null;
 };
 
+function toAiConfigActionableError(error: Error): string {
+  if (error.message === "AI_CONFIG_ENCRYPTION_KEY is missing") {
+    return "服务端缺少 AI_CONFIG_ENCRYPTION_KEY，当前无法保存 AI 配置。请在项目根目录 .env 中补充 32 字节密钥后重启 API 服务。";
+  }
+
+  if (error.message === "AI_CONFIG_ENCRYPTION_KEY must be exactly 32 bytes (utf8/base64/hex)") {
+    return "服务端 AI_CONFIG_ENCRYPTION_KEY 长度不正确。请在项目根目录 .env 中使用 32 字节 utf8/base64/hex 密钥后重启 API 服务。";
+  }
+
+  return error.message;
+}
+
 @Controller("ai/configs")
 export class AiConfigsController {
   @Get()
@@ -67,7 +79,7 @@ export class AiConfigsController {
       return { item };
     } catch (error) {
       if (error instanceof Error) {
-        throw new BadRequestException(error.message);
+        throw new BadRequestException(toAiConfigActionableError(error));
       }
       throw error;
     }
@@ -99,7 +111,7 @@ export class AiConfigsController {
         throw error;
       }
       if (error instanceof Error) {
-        throw new BadRequestException(error.message);
+        throw new BadRequestException(toAiConfigActionableError(error));
       }
       throw error;
     }

@@ -1,3 +1,4 @@
+import "../../src/load-project-env";
 import { readFileSync } from "node:fs";
 import * as path from "node:path";
 import { Pool, PoolClient } from "pg";

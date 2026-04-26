@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -13,6 +13,7 @@ type PhaseStatus = {
 type Props = {
   title?: string;
   subtitle?: string;
+  headerActions?: ReactNode;
   phaseStatus: PhaseStatus | null;
   isLoading: boolean;
   reasoningSummary: string;
@@ -26,22 +27,10 @@ type Props = {
   emptyText: string;
 };
 
-function formatElapsedMs(elapsedMs: number): string {
-  if (elapsedMs < 1000) {
-    return `${elapsedMs}ms`;
-  }
-
-  const seconds = elapsedMs / 1000;
-  if (seconds < 10) {
-    return `${seconds.toFixed(1)}s`;
-  }
-
-  return `${Math.round(seconds)}s`;
-}
-
 export default function AiStreamPanel({
   title,
   subtitle,
+  headerActions,
   phaseStatus,
   isLoading,
   reasoningSummary,
@@ -59,16 +48,9 @@ export default function AiStreamPanel({
   const hasReasoning = reasoningSummary.trim().length > 0;
   const hasContent = content.trim().length > 0;
   const shouldRenderThinkingPanel = hasReasoning || isLoading;
-  const statusLabel = isLoading ? "生成中" : hasContent ? "回答完成" : "等待生成";
-  const statusToneClass = isLoading
-    ? "border-[var(--lc-info)]/28 bg-[var(--lc-info)]/8 text-[var(--lc-info)]"
-    : hasContent
-      ? "border-[var(--lc-success)]/28 bg-[var(--lc-success)]/8 text-[var(--lc-success)]"
-      : "border-[var(--lc-border)] bg-[var(--lc-surface)] text-[var(--lc-text-muted)]";
   const thinkingHeightClass = isThinkingExpanded ? "max-h-[20rem]" : "max-h-32";
   const thinkingDurationText = phaseStatus ? `${Math.max(1, Math.round(phaseStatus.elapsedMs / 1000))}s` : "";
-  const compactStageText = phaseStatus?.message?.trim() ?? "";
-  const answerSectionClass = shouldRenderThinkingPanel ? "pt-3" : "";
+  const hasHeaderSummary = Boolean(title || subtitle);
 
   useEffect(() => {
     if (!isLoading || isThinkingCollapsed) {
@@ -94,55 +76,51 @@ export default function AiStreamPanel({
 
   return (
     <div
-      className="rounded-[28px] border px-5 py-4 shadow-[0_14px_40px_rgba(15,23,42,0.05)]"
+      className="flex h-full min-h-0 flex-col rounded-[22px] border border-[var(--lc-border)] bg-[var(--lc-surface)] px-4 py-4 shadow-[0_10px_28px_rgba(15,23,42,0.04)]"
       style={{
         background:
-          "linear-gradient(180deg, color-mix(in oklab, var(--lc-surface) 97%, white), color-mix(in oklab, var(--lc-surface-soft) 98%, white))"
+          "linear-gradient(180deg, color-mix(in oklab, var(--lc-surface) 99%, white), color-mix(in oklab, var(--lc-surface-soft) 46%, var(--lc-surface) 54%))"
       }}
     >
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex min-h-0 flex-1 flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--lc-border-soft)] pb-3">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-3">
-              <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[linear-gradient(135deg,#f2f0ff,#eef4ff)] shadow-[0_6px_16px_rgba(99,102,241,0.12)]">
-                <span className="text-base text-[#7c6cff]">✦</span>
-              </span>
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-[var(--lc-accent)]" />
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <span className="text-[17px] font-semibold tracking-[-0.02em] text-[#6e63ff]">leetPro</span>
-                  {compactStageText ? (
-                    <span className="truncate text-xs text-[var(--lc-text-muted)]">
-                      {compactStageText}
-                      {isLoading ? ` · ${formatElapsedMs(phaseStatus?.elapsedMs ?? 0)}` : ""}
-                    </span>
-                  ) : null}
+                  <span className="text-base font-semibold tracking-[-0.02em] text-[var(--lc-text)]">leetPro AI</span>
                 </div>
-                {title ? <p className="mt-0.5 text-xs font-medium text-[var(--lc-text-muted)]">{title}</p> : null}
-                {subtitle ? <p className="mt-0.5 text-xs leading-5 text-[var(--lc-text-muted)]">{subtitle}</p> : null}
+                {hasHeaderSummary ? (
+                  <div className="mt-2 space-y-1">
+                    {title ? <p className="text-sm font-semibold text-[var(--lc-text)]">{title}</p> : null}
+                    {subtitle ? <p className="text-xs leading-5 text-[var(--lc-text-muted)]">{subtitle}</p> : null}
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
-          <span className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${statusToneClass}`}>{statusLabel}</span>
+          <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap">
+            {headerActions ? <div className="lc-ai-toolbar">{headerActions}</div> : null}
+          </div>
         </div>
 
-        <section className="rounded-[22px] border border-[var(--lc-border)] bg-[var(--lc-surface)] px-4 py-4">
+        <section className="flex min-h-0 flex-1 flex-col">
           {shouldRenderThinkingPanel ? (
-            <div className="mb-3 rounded-[16px] border border-[#ddd8ff] bg-[linear-gradient(180deg,rgba(124,108,255,0.08),rgba(124,108,255,0.025))] px-3 py-3">
-              <div className="flex flex-wrap items-center gap-1.5">
+            <div className="mb-3 shrink-0 rounded-[14px] border border-[var(--lc-border-soft)] bg-[var(--lc-surface-soft)] px-3 py-2.5">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[linear-gradient(180deg,#f7f7f8,#efefef)] px-3.5 py-2 text-xs font-semibold text-[var(--lc-text)] shadow-[0_8px_18px_rgba(15,23,42,0.05)] transition-colors hover:bg-[var(--lc-border)]/60"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[var(--lc-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--lc-text)] transition-colors hover:bg-[var(--lc-border)]/50"
                   onClick={() => onThinkingCollapsedChange(!isThinkingCollapsed)}
                 >
                   <span>{`思考${thinkingDurationText ? ` ${thinkingDurationText}` : ""}`}</span>
                   <span className={`inline-block text-xs transition-transform ${isThinkingCollapsed ? "-rotate-90" : "rotate-0"}`}>⌃</span>
                 </button>
-                <span className="rounded-full border border-[#d8d1ff] bg-white/70 px-2.5 py-1.5 text-[11px] font-medium text-[#6e63ff]">
-                  推理摘要
-                </span>
+                <span className="text-[11px] font-medium text-[var(--lc-text-muted)]">推理摘要</span>
                 <button
                   type="button"
-                  className="rounded-full border border-[var(--lc-border)] px-2.5 py-1.5 text-[11px] text-[var(--lc-text-muted)] transition-colors hover:bg-[var(--lc-surface-soft)]"
+                  className="ml-auto rounded-full border border-[var(--lc-border)] bg-[var(--lc-surface)] px-2.5 py-1.5 text-[11px] text-[var(--lc-text-muted)] transition-colors hover:bg-[var(--lc-surface-soft)] disabled:opacity-50"
                   onClick={() => onThinkingExpandedChange(!isThinkingExpanded)}
                   disabled={isThinkingCollapsed}
                 >
@@ -153,9 +131,9 @@ export default function AiStreamPanel({
               {!isThinkingCollapsed ? (
                 <div
                   ref={thinkingViewportRef}
-                  className={`mt-3 overflow-y-auto rounded-[14px] border border-white/70 bg-white/45 px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] transition-[max-height] duration-200 ${thinkingHeightClass}`}
+                  className={`mt-2.5 overflow-y-auto rounded-[12px] border border-[var(--lc-border-soft)] bg-[var(--lc-surface)] px-3 py-2.5 transition-[max-height] duration-200 ${thinkingHeightClass}`}
                 >
-                  <div className="lc-markdown lc-ai-markdown text-[13px] leading-7 text-[var(--lc-text-muted)]">
+                  <div className="lc-markdown lc-ai-markdown text-[13px] leading-6 text-[var(--lc-text-muted)]">
                     {hasReasoning ? (
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{reasoningMarkdown}</ReactMarkdown>
                     ) : (
@@ -167,15 +145,15 @@ export default function AiStreamPanel({
             </div>
           ) : null}
 
-          <div className={answerSectionClass}>
+          <div className="flex min-h-0 flex-1 flex-col">
             <div className="mb-2 flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-[var(--lc-success)]" />
-              <span className="text-sm font-semibold text-[var(--lc-text)]">正式回答</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--lc-success)]" />
+              <span className="text-sm font-semibold text-[var(--lc-text)]">回答</span>
               {isLoading ? <span className="text-xs text-[var(--lc-text-muted)]">持续生成中</span> : null}
             </div>
             {hasContent ? (
-              <div ref={answerViewportRef} className="max-h-[40rem] overflow-y-auto">
-                <div className="lc-markdown lc-ai-markdown text-sm leading-8 text-[var(--lc-text)] [&>p:first-of-type]:text-[18px] [&>p:first-of-type]:font-semibold [&>p:first-of-type]:leading-10 [&>p:first-of-type]:tracking-[-0.015em]">
+              <div ref={answerViewportRef} className="lc-scrollbar-hidden min-h-0 flex-1 overflow-y-auto pr-1">
+                <div className="lc-markdown lc-ai-markdown text-[15px] leading-7 text-[var(--lc-text)] [&>p:first-of-type]:text-base [&>p:first-of-type]:font-semibold [&>p:first-of-type]:leading-8 [&>p:first-of-type]:tracking-[-0.01em]">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{contentMarkdown}</ReactMarkdown>
                 </div>
               </div>
