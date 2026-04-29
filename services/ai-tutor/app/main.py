@@ -94,7 +94,7 @@ def normalize_runtime_config(runtime_config: RuntimeConfig | None) -> RuntimeCon
     if runtime_config is None:
         return None
 
-    base_url = runtime_config.baseUrl.strip().rstrip("/")
+    base_url = normalize_openai_base_url(runtime_config.baseUrl)
     api_key = runtime_config.apiKey.strip()
     model = runtime_config.model.strip()
     if not base_url or not api_key or not model:
@@ -125,17 +125,25 @@ def normalize_runtime_config(runtime_config: RuntimeConfig | None) -> RuntimeCon
     )
 
 
+def normalize_openai_base_url(value: str) -> str:
+    base_url = value.strip().rstrip("/")
+    for suffix in ("/chat/completions", "/responses"):
+        if base_url.endswith(suffix):
+            base_url = base_url[: -len(suffix)].rstrip("/")
+    return base_url
+
+
 DEFAULT_PROVIDER = normalize_provider(os.getenv("LLM_PROVIDER", "mock")) or "mock"
-VLLM_BASE_URL = os.getenv("VLLM_BASE_URL", "http://127.0.0.1:18100/v1").strip().rstrip("/")
+VLLM_BASE_URL = normalize_openai_base_url(os.getenv("VLLM_BASE_URL", "http://127.0.0.1:18100/v1"))
 VLLM_API_KEY = os.getenv("VLLM_API_KEY", "").strip()
 VLLM_MODEL = os.getenv("VLLM_MODEL", "Qwen/Qwen2.5-7B-Instruct").strip()
 CHAT_TEMPLATE_TYPE = os.getenv("CHAT_TEMPLATE_TYPE", "qwen").strip().lower()
-MINIMAX_BASE_URL = os.getenv("MINIMAX_BASE_URL", "https://api.minimaxi.com/v1").strip().rstrip("/")
+MINIMAX_BASE_URL = normalize_openai_base_url(os.getenv("MINIMAX_BASE_URL", "https://api.minimaxi.com/v1"))
 MINIMAX_API_KEY = os.getenv("MINIMAX_API_KEY", "").strip()
 MINIMAX_MODEL = os.getenv("MINIMAX_MODEL", "MiniMax-M2.7").strip()
-DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1").strip().rstrip("/")
+DEEPSEEK_BASE_URL = normalize_openai_base_url(os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"))
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "").strip()
-DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat").strip()
+DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash").strip()
 CUSTOM_CONFIG_TIMEOUT_SECONDS = float(
     os.getenv("AI_TUTOR_CUSTOM_CONFIG_TIMEOUT_MS", "90000")
 ) / 1000.0
@@ -864,6 +872,70 @@ def build_auth_headers(api_key: str) -> dict[str, str]:
     return headers
 
 
+def format_upstream_error(provider: str, response: httpx.Response, raw_text: str) -> str:
+    message = raw_text.strip()
+    try:
+        payload = response.json()
+        if isinstance(payload, dict):
+            error = payload.get("error")
+            if isinstance(error, dict):
+                candidate = error.get("message")
+                if isinstance(candidate, str) and candidate.strip():
+                    message = candidate.strip()
+            detail = payload.get("detail")
+            if isinstance(detail, str) and detail.strip():
+                message = detail.strip()
+            candidate = payload.get("message")
+            if isinstance(candidate, str) and candidate.strip():
+                message = candidate.strip()
+    except Exception:
+        pass
+
+    if len(message) > 500:
+        message = f"{message[:500]}..."
+    if not message:
+        message = response.reason_phrase or "upstream request failed"
+    return f"{provider} upstream HTTP {response.status_code}: {message}"
+
+
+async def raise_for_upstream_status(provider: str, response: httpx.Response) -> None:
+    if response.status_code < 400:
+        return
+    raw_text = await response.aread()
+    raise RuntimeError(format_upstream_error(provider, response, raw_text.decode("utf-8", errors="replace")))
+
+
+def format_provider_error_message(provider: str, request_type: str, exc: Exception) -> str:
+    action = "题解生成" if request_type == "solution" else "AI 判题"
+    raw_message = str(exc).strip()
+    normalized = raw_message.lower()
+
+    if "api key missing" in normalized:
+        return f"{provider} {action}失败：API Key 未配置，请检查 .env 或首页 AI 配置。"
+
+    connection_signals = (
+        "all connection attempts failed",
+        "connection refused",
+        "connecterror",
+        "failed to establish a new connection",
+        "name or service not known",
+        "nodename nor servname provided",
+    )
+    if any(signal in normalized for signal in connection_signals):
+        return f"{provider} {action}失败：模型服务不可达，请检查 Base URL、端口和服务是否已启动。"
+
+    if "provider not available" in normalized:
+        return f"{provider} {action}失败：当前 provider 不支持远程模型调用，请在首页选择可用 AI 配置。"
+
+    if "upstream http" in normalized and raw_message:
+        return f"{provider} {action}失败：{raw_message[:500]}"
+
+    if raw_message:
+        return f"{provider} {action}失败，请稍后重试。详情：{raw_message[:260]}"
+
+    return f"{provider} {action}失败，请稍后重试。"
+
+
 def normalize_temperature(value: float, fallback: float) -> float:
     if value <= 0:
         return fallback
@@ -1346,7 +1418,7 @@ async def request_provider_completion(
     payload_json: Any = None
     async with httpx.AsyncClient(timeout=timeout) as client:
         response = await client.post(url, headers=build_auth_headers(api_key), json=body)
-        response.raise_for_status()
+        await raise_for_upstream_status(provider, response)
         payload_json = response.json()
 
     if not isinstance(payload_json, dict):
@@ -1414,7 +1486,7 @@ async def stream_provider_via_responses(
 
     async with httpx.AsyncClient(timeout=timeout) as client:
         async with client.stream("POST", url, headers=build_auth_headers(api_key), json=body) as response:
-            response.raise_for_status()
+            await raise_for_upstream_status(provider, response)
             _ENDPOINT_CAPABILITY_CACHE[config.base_url] = "responses"
             async for raw_event, payload in iter_sse_frames(response):
                 event_type = raw_event
@@ -1474,7 +1546,7 @@ async def stream_provider_via_chat_completions(
 
     async with httpx.AsyncClient(timeout=timeout) as client:
         async with client.stream("POST", url, headers=build_auth_headers(api_key), json=body) as response:
-            response.raise_for_status()
+            await raise_for_upstream_status(provider, response)
             _ENDPOINT_CAPABILITY_CACHE[config.base_url] = "chat"
             async for _, payload in iter_sse_frames(response):
                 if isinstance(payload, dict) and payload.get("type") == "done":
@@ -1857,7 +1929,7 @@ async def solution(payload: SolutionRequest) -> dict[str, Any]:
         )
         raise HTTPException(
             status_code=502,
-            detail=f"{provider} 题解生成失败，请稍后重试。",
+            detail=format_provider_error_message(provider, "solution", exc),
         ) from exc
 
     return {
@@ -1999,7 +2071,7 @@ async def stream_solution(payload: SolutionRequest) -> AsyncIterator[str]:
             f"[ai-tutor][solution-stream] provider={requested_provider} error={type(exc).__name__}: {exc}",
             flush=True,
         )
-        message = f"{requested_provider} 题解生成失败，请稍后重试。"
+        message = format_provider_error_message(requested_provider, "solution", exc)
         yield to_sse(
             "error",
             {

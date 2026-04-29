@@ -323,7 +323,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const config = {
     apiBaseUrl: trimUrl(args["api-base-url"] ?? process.env.E2E_API_BASE_URL ?? "http://localhost:3001"),
-    aiBaseUrl: trimUrl(args["ai-base-url"] ?? process.env.E2E_AI_BASE_URL ?? "http://localhost:8000"),
+    aiBaseUrl: trimUrl(args["ai-base-url"] ?? process.env.E2E_AI_BASE_URL ?? "http://localhost:8001"),
     judgeBaseUrl: trimUrl(args["judge-base-url"] ?? process.env.E2E_JUDGE_BASE_URL ?? "http://localhost:8080"),
     problemSlug: args["problem-slug"] ?? process.env.E2E_PROBLEM_SLUG ?? "two-sum",
     language: args.language ?? process.env.E2E_LANGUAGE ?? "python",

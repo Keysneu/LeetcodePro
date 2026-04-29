@@ -143,6 +143,7 @@ const AI_TUTOR_CUSTOM_CONFIG_SOLUTION_TIMEOUT_MS = Number(
   process.env.AI_TUTOR_CUSTOM_CONFIG_SOLUTION_TIMEOUT_MS ?? 300000
 );
 const OPENAI_COMPATIBLE_PROVIDER_KIND = "openai_compatible";
+const DEFAULT_AI_TUTOR_BASE_URL = "http://localhost:8001";
 
 type SseResponse = {
   status(code: number): SseResponse;
@@ -292,7 +293,7 @@ function normalizeSolutionErrorMessage(provider: AiProvider | null, rawMessage: 
   const providerLabel = provider ?? "AI";
   const fallback = `${providerLabel} 题解生成失败，请稍后重试。`;
   const timeoutMessage = `${providerLabel} 题解请求超时，请稍后重试。`;
-  const message = (rawMessage ?? "").trim();
+  const message = (rawMessage ?? "").trim().replace(/^(Error|BadGatewayException):\s*/i, "");
 
   if (message.length === 0) {
     return fallback;
@@ -313,7 +314,61 @@ function normalizeSolutionErrorMessage(provider: AiProvider | null, rawMessage: 
     return timeoutMessage;
   }
 
-  if (message.includes("题解") || message.includes("稍后重试") || message.includes("超时")) {
+  const aiTutorUnavailableSignals = ["fetch failed", "failed to fetch"];
+  if (aiTutorUnavailableSignals.some((item) => normalized.includes(item))) {
+    return "AI Tutor 服务不可达，请确认 npm run dev:ai 已启动，且 AI_TUTOR_BASE_URL 指向当前 AI Tutor 端口。";
+  }
+
+  const modelConnectionSignals = [
+    "connection refused",
+    "all connection attempts failed",
+    "connecterror",
+    "econnrefused",
+    "failed to establish a new connection"
+  ];
+  if (modelConnectionSignals.some((item) => normalized.includes(item))) {
+    return `${providerLabel} 模型服务不可达，请检查 Base URL、端口和模型服务是否已启动。`;
+  }
+
+  const upstreamStatusMatch = message.match(/upstream HTTP\s+(\d{3}):\s*([\s\S]*)$/i);
+  if (upstreamStatusMatch) {
+    const status = upstreamStatusMatch[1];
+    if (status === "401" || status === "403") {
+      return `${providerLabel} 鉴权失败，请检查 API Key 是否正确或是否有模型权限。`;
+    }
+    if (status === "404") {
+      return `${providerLabel} 请求地址或模型不存在，请检查 Base URL 与 Model。`;
+    }
+    if (status === "429") {
+      return `${providerLabel} 触发限流或额度不足，请稍后重试或检查账户额度。`;
+    }
+    if (status.startsWith("5")) {
+      return `${providerLabel} 上游服务暂时不可用，请稍后重试。`;
+    }
+  }
+
+  const aiTutorRouteMissingSignals = [
+    "cannot post /solution/stream",
+    "cannot post /solution",
+    "upstream sse unavailable: 404"
+  ];
+  if (normalized === "not found" || aiTutorRouteMissingSignals.some((item) => normalized.includes(item))) {
+    return "AI Tutor 题解接口不存在，请确认 AI_TUTOR_BASE_URL 指向 services/ai-tutor 当前版本，并重启 AI/API 服务。";
+  }
+
+  if (
+    message.includes("题解") ||
+    message.includes("稍后重试") ||
+    message.includes("超时") ||
+    message.includes("AI Tutor") ||
+    message.includes("模型服务不可达") ||
+    message.includes("API Key") ||
+    message.includes("鉴权") ||
+    message.includes("限流") ||
+    message.includes("额度") ||
+    message.includes("Base URL") ||
+    message.includes("Model")
+  ) {
     return message.slice(0, 240);
   }
 
@@ -322,7 +377,7 @@ function normalizeSolutionErrorMessage(provider: AiProvider | null, rawMessage: 
 
 function normalizeCustomConfigErrorMessage(rawMessage: string | null): string {
   const fallback = "当前 AI 配置调用失败，请检查首页中的 Base URL / API Key / Model 后重试。";
-  const message = (rawMessage ?? "").trim();
+  const message = (rawMessage ?? "").trim().replace(/^(Error|BadGatewayException):\s*/i, "");
   if (message.length === 0) {
     return fallback;
   }
@@ -335,6 +390,35 @@ function normalizeCustomConfigErrorMessage(rawMessage: string | null): string {
   const timeoutSignals = ["aborterror", "timeout", "timed out", "deadline exceeded"];
   if (timeoutSignals.some((item) => normalized.includes(item))) {
     return "当前 AI 配置请求超时，请检查服务可达性或稍后重试。";
+  }
+
+  const aiTutorUnavailableSignals = ["fetch failed", "failed to fetch"];
+  if (aiTutorUnavailableSignals.some((item) => normalized.includes(item))) {
+    return "AI Tutor 服务不可达，请确认 npm run dev:ai 已启动，且 AI_TUTOR_BASE_URL 指向当前 AI Tutor 端口。";
+  }
+
+  const upstreamStatusMatch = message.match(/upstream HTTP\s+(\d{3}):\s*([\s\S]*)$/i);
+  if (upstreamStatusMatch) {
+    const status = upstreamStatusMatch[1];
+    const detail = upstreamStatusMatch[2]?.trim() ?? "";
+    if (status === "401" || status === "403") {
+      return "当前 AI 配置鉴权失败，请检查 API Key 是否正确或是否有模型权限。";
+    }
+    if (status === "404") {
+      return "当前 AI 配置请求地址或模型不存在，请检查 Base URL 不要填写完整 /chat/completions 路径，并确认 Model 名称。";
+    }
+    if (status === "429") {
+      return "当前 AI 配置触发限流或额度不足，请稍后重试或检查账户额度。";
+    }
+    if (status === "400") {
+      const safeDetail = detail.replace(/\s+/g, " ").slice(0, 180);
+      return safeDetail
+        ? `当前 AI 配置参数不被上游接受：${safeDetail}`
+        : "当前 AI 配置参数不被上游接受，请检查 Model、Base URL 与请求参数。";
+    }
+    if (status.startsWith("5")) {
+      return "上游 AI 服务暂时不可用，请稍后重试。";
+    }
   }
 
   return fallback;
@@ -368,7 +452,7 @@ export class AiController {
 
   @Post("review")
   async review(@Body() body: ReviewBody) {
-    const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? "http://localhost:8000";
+    const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? DEFAULT_AI_TUTOR_BASE_URL;
     const userId = await getOrCreateDemoUserId();
     const requestedProvider = normalizeAiProvider(body.provider);
     const resolvedConfig = await resolveAiRuntimeConfigForRequest(
@@ -458,7 +542,7 @@ export class AiController {
 
   @Post("review/stream")
   async reviewStream(@Body() body: ReviewBody, @Res() res: SseResponse): Promise<void> {
-    const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? "http://localhost:8000";
+    const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? DEFAULT_AI_TUTOR_BASE_URL;
     const userId = await getOrCreateDemoUserId();
     const requestedProvider = normalizeAiProvider(body.provider);
     const resolvedConfig = await resolveAiRuntimeConfigForRequest(
@@ -859,7 +943,7 @@ export class AiController {
 
   @Post("solution")
   async solution(@Body() body: SolutionBody) {
-    const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? "http://localhost:8000";
+    const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? DEFAULT_AI_TUTOR_BASE_URL;
     const userId = await getOrCreateDemoUserId();
     const requestedProvider = normalizeAiProvider(body.provider);
     const resolvedConfig = await resolveAiRuntimeConfigForRequest(
@@ -954,7 +1038,7 @@ export class AiController {
 
   @Post("solution/stream")
   async solutionStream(@Body() body: SolutionBody, @Res() res: SseResponse): Promise<void> {
-    const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? "http://localhost:8000";
+    const aiTutorBaseUrl = process.env.AI_TUTOR_BASE_URL ?? DEFAULT_AI_TUTOR_BASE_URL;
     const userId = await getOrCreateDemoUserId();
     const requestedProvider = normalizeAiProvider(body.provider);
     const resolvedConfig = await resolveAiRuntimeConfigForRequest(
@@ -1020,6 +1104,8 @@ export class AiController {
     let doneSent = false;
     let providerKind = OPENAI_COMPATIBLE_PROVIDER_KIND;
     let model = "";
+    const normalizeStreamErrorMessage = (message: string | null) =>
+      runtimeConfig ? normalizeCustomConfigErrorMessage(message) : normalizeSolutionErrorMessage(provider, message);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), resolveAiTutorSolutionTimeoutMs(provider, runtimeConfig !== null));
@@ -1180,8 +1266,7 @@ export class AiController {
             provider = normalizeAiProvider(readStringField(payload, "provider")) ?? provider;
             providerKind = readStringField(payload, "providerKind") ?? providerKind;
             model = readStringField(payload, "model") ?? model;
-            const message = normalizeSolutionErrorMessage(
-              provider,
+            const message = normalizeStreamErrorMessage(
               readStringField(payload, "message") ?? readStringField(payload, "error")
             );
             streamError = message;
@@ -1234,7 +1319,7 @@ export class AiController {
               editorial = finalEditorial;
             }
             if (finalError && finalError.length > 0) {
-              streamError = normalizeSolutionErrorMessage(provider, finalError);
+              streamError = normalizeStreamErrorMessage(finalError);
             }
             if (finalReasoningSummary && finalReasoningSummary.length > 0) {
               reasoningSummary = finalReasoningSummary;
@@ -1287,7 +1372,7 @@ export class AiController {
             editorial = finalEditorial;
           }
           if (finalError && finalError.length > 0) {
-            streamError = normalizeSolutionErrorMessage(provider, finalError);
+            streamError = normalizeStreamErrorMessage(finalError);
           }
           if (finalReasoningSummary && finalReasoningSummary.length > 0) {
             reasoningSummary = finalReasoningSummary;
@@ -1312,7 +1397,7 @@ export class AiController {
             editorial = finalEditorial;
           }
           if (finalError && finalError.length > 0) {
-            streamError = normalizeSolutionErrorMessage(provider, finalError);
+            streamError = normalizeStreamErrorMessage(finalError);
           }
           if (finalReasoningSummary && finalReasoningSummary.length > 0) {
             reasoningSummary = finalReasoningSummary;
@@ -1350,7 +1435,7 @@ export class AiController {
               editorial = finalEditorial;
             }
             if (finalError && finalError.length > 0) {
-              streamError = normalizeSolutionErrorMessage(provider, finalError);
+              streamError = normalizeStreamErrorMessage(finalError);
             }
             if (finalReasoningSummary && finalReasoningSummary.length > 0) {
               reasoningSummary = finalReasoningSummary;
@@ -1374,7 +1459,7 @@ export class AiController {
               editorial = finalEditorial;
             }
             if (finalError && finalError.length > 0) {
-              streamError = normalizeSolutionErrorMessage(provider, finalError);
+              streamError = normalizeStreamErrorMessage(finalError);
             }
             if (finalReasoningSummary && finalReasoningSummary.length > 0) {
               reasoningSummary = finalReasoningSummary;
@@ -1395,9 +1480,7 @@ export class AiController {
     } catch (error) {
       source = "api-error";
       const message = error instanceof Error ? `${error.name}: ${error.message}` : null;
-      streamError = runtimeConfig
-        ? normalizeCustomConfigErrorMessage(message)
-        : normalizeSolutionErrorMessage(provider, message);
+      streamError = normalizeStreamErrorMessage(message);
       writeSseEvent(res, "error", {
         sessionId: sessionId ?? "",
         source,
@@ -1425,7 +1508,7 @@ export class AiController {
       if (editorial.length === 0) {
         source = "api-error";
         if (streamError.length === 0) {
-          streamError = normalizeSolutionErrorMessage(provider, null);
+          streamError = normalizeStreamErrorMessage(null);
         }
         writeSseEvent(res, "error", {
           sessionId: sessionId ?? "",

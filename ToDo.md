@@ -1,6 +1,6 @@
 # LeetCodePro MVP 开发 ToDo
 
-更新时间：2026-04-26（Asia/Shanghai）
+更新时间：2026-04-29（Asia/Shanghai）
 
 状态约定：
 - `[ ]` 未开始
@@ -175,6 +175,12 @@
 - [x] README / TECH_DESIGN / ToDo 同步更新
 
 ## 4. 本周开发记录（Progress Log）
+
+### 2026-04-29
+- [x] 精简 README：将历史迭代式长文档收敛为项目概览、已完成/未完成范围、快速启动、核心验证、测试验收、停止服务与常见问题，保留可直接复制执行的命令。
+- [x] 修复 DeepSeek V4 Flash 题解失败排查体验：OpenAI 兼容 Base URL 自动去掉完整 endpoint 后缀，DeepSeek 默认示例更新为 `deepseek-v4-flash`，并将上游 400/401/404/429 转换为更明确的页面错误提示。
+- [x] 收敛 AI Tutor 依赖版本：锁定 `pydantic>=2.7.0,<2.12.0`，避免 LlamaIndex 在 Pydantic 2.12 下启动时输出 `UnsupportedFieldAttributeWarning`。
+- [x] 修复本机 AI 题解端口冲突：AI Tutor 默认改为 `8001` 并读取 `AI_TUTOR_PORT`，避免旧 `Grading Service` 占用 `8000` 导致 `/solution/stream` 404；API 题解错误提示可区分端口跑错服务、模型服务不可达和自定义配置上游错误。
 
 ### 2026-04-26
 - [x] 重构 `apps/web/lib/ai-stream.ts`：新增统一 `AiStreamFrame/AiStreamState/AiStreamContentKind`，集中处理 `response.output_text.delta`、`response.output_text.replace`、`response.reasoning_summary_text.delta`、`response.completed/done/error` 与 legacy `delta`
