@@ -7,7 +7,8 @@ import AiStreamPanel from "@/components/ai-stream-panel";
 import { splitAssistantDisplayContent } from "@/lib/ai-content-split";
 import { AI_PROVIDER_SYNC_EVENT, AiProvider, aiProviderLabel, getDefaultAiProvider, readPreferredAiProvider } from "@/lib/ai-provider";
 import { AI_CONFIG_SYNC_EVENT, listAiConfigs, type AiConfigDefaults, type AiConfigItem } from "@/lib/ai-config";
-import { consumeAiSemanticStream, createStreamTextBatcher } from "@/lib/ai-stream";
+import { readPhaseStatusPayload, runAiStreamRequest } from "@/lib/ai-stream-request";
+import { prepareStreamingMarkdown } from "@/lib/ai-streaming-markdown";
 import { normalizeDisplayText, normalizeProblemStatementMarkdown } from "@/lib/output-display";
 import {
   EDITOR_SYNC_EVENT,
@@ -291,15 +292,8 @@ function normalizeProblemMarkdown(markdown: string): string {
   return normalizeProblemStatementMarkdown(markdown).replace(/^\s*[\t ]+-\s+/gm, "- ");
 }
 
-function normalizeStreamingMarkdown(markdown: string): string {
-  const normalized = normalizeProblemMarkdown(markdown);
-  const fenceCount = (normalized.match(/(^|\n)```/g) ?? []).length;
-
-  if (fenceCount % 2 === 0) {
-    return normalized;
-  }
-
-  return `${normalized}\n\`\`\``;
+function normalizeStreamingMarkdown(markdown: string, isStreaming: boolean): string {
+  return prepareStreamingMarkdown(normalizeProblemMarkdown(markdown), { isStreaming });
 }
 
 function statusClass(status: SubmissionStatus): string {
@@ -482,15 +476,21 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
   );
 
   const descriptionMarkdown = useMemo(() => normalizeProblemMarkdown(problem.description), [problem.description]);
-  const solutionMarkdown = useMemo(() => normalizeStreamingMarkdown(solutionDisplay.answer), [solutionDisplay.answer]);
-  const solutionReasoningMarkdown = useMemo(
-    () => normalizeStreamingMarkdown(solutionDisplay.reasoning),
-    [solutionDisplay.reasoning]
+  const solutionMarkdown = useMemo(
+    () => normalizeStreamingMarkdown(solutionDisplay.answer, solutionLoading),
+    [solutionDisplay.answer, solutionLoading]
   );
-  const reviewMarkdown = useMemo(() => normalizeStreamingMarkdown(reviewDisplay.answer), [reviewDisplay.answer]);
+  const solutionReasoningMarkdown = useMemo(
+    () => normalizeStreamingMarkdown(solutionDisplay.reasoning, solutionLoading),
+    [solutionDisplay.reasoning, solutionLoading]
+  );
+  const reviewMarkdown = useMemo(
+    () => normalizeStreamingMarkdown(reviewDisplay.answer, reviewLoading),
+    [reviewDisplay.answer, reviewLoading]
+  );
   const reviewReasoningMarkdown = useMemo(
-    () => normalizeStreamingMarkdown(reviewDisplay.reasoning),
-    [reviewDisplay.reasoning]
+    () => normalizeStreamingMarkdown(reviewDisplay.reasoning, reviewLoading),
+    [reviewDisplay.reasoning, reviewLoading]
   );
   const canRunAiReview = useMemo(
     () => currentSubmission !== null && TERMINAL_STATUSES.has(currentSubmission.status),
@@ -896,18 +896,18 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
       message: "已发送 AI 题解请求，正在准备题面上下文。",
       elapsedMs: 0
     });
-    const streamTextBatcher = createStreamTextBatcher({
-      onReasoningChange: setSolutionReasoningSummary,
-      onContentChange: setSolutionText
-    });
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/ai/solution/stream`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json"
+      const streamResult = await runAiStreamRequest({
+        url: `${apiBaseUrl}/api/ai/solution/stream`,
+        contentField: "editorial",
+        parseErrorPayload: parseErrorMessage,
+        normalizeResponseError(message) {
+          return normalizeSolutionErrorMessage(message, selectionLabel);
         },
-        body: JSON.stringify({
+        onReasoningChange: setSolutionReasoningSummary,
+        onContentChange: setSolutionText,
+        body: {
           problemSlug: problem.slug,
           ...(selectedReplaySubmissionId ? { submissionId: selectedReplaySubmissionId } : {}),
           problemTitle: problem.title,
@@ -917,17 +917,7 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
           description: problem.description,
           sampleInput: problem.sampleInput,
           sampleOutput: problem.sampleOutput
-        })
-      });
-
-      if (!response.ok || !response.body) {
-        const fallbackPayload = (await response.json().catch(() => null)) as unknown;
-        throw new Error(normalizeSolutionErrorMessage(parseErrorMessage(fallbackPayload), selectionLabel));
-      }
-
-      const streamResult = await consumeAiSemanticStream({
-        response,
-        contentField: "editorial",
+        },
         onMeta(payload) {
           if (typeof payload.source === "string" && payload.source.length > 0) {
             setSolutionSource(payload.source);
@@ -940,21 +930,7 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
           }
         },
         onPhase(payload) {
-          const message = typeof payload.message === "string" && payload.message.length > 0 ? payload.message : "正在处理中。";
-          setSolutionPhaseStatus((previous) => ({
-            stage: typeof payload.stage === "string" && payload.stage.length > 0 ? payload.stage : "progress",
-            message,
-            elapsedMs: typeof payload.elapsedMs === "number" ? payload.elapsedMs : previous?.elapsedMs ?? 0
-          }));
-        },
-        onReasoningDelta(delta) {
-          streamTextBatcher.appendReasoning(delta);
-        },
-        onContentDelta(delta) {
-          streamTextBatcher.appendContent(delta);
-        },
-        onContentReplace(text) {
-          streamTextBatcher.replaceContent(text);
+          setSolutionPhaseStatus((previous) => readPhaseStatusPayload(payload, previous));
         },
         onCompleted(payload) {
           setSolutionPhaseStatus((previous) => ({
@@ -962,9 +938,6 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
             message: "题解结果已整理完成。",
             elapsedMs: previous?.elapsedMs ?? 0
           }));
-          if (typeof payload.reasoningSummary === "string" && payload.reasoningSummary.length > 0) {
-            streamTextBatcher.replaceReasoning(payload.reasoningSummary);
-          }
           if (typeof payload.source === "string" && payload.source.length > 0) {
             setSolutionSource(payload.source);
           }
@@ -974,7 +947,6 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
           if (typeof payload.sessionId === "string" && payload.sessionId.length > 0) {
             setSolutionSessionId(payload.sessionId);
           }
-          streamTextBatcher.flushNow();
         },
         onError(message, payload) {
           const normalized = normalizeSolutionErrorMessage(message || "题解生成失败，请稍后重试。", selectionLabel);
@@ -991,7 +963,6 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
         }
       });
 
-      streamTextBatcher.flushNow();
       if (streamResult.error) {
         setSolutionError(normalizeSolutionErrorMessage(streamResult.error, selectionLabel));
       } else if (!streamResult.doneReceived || streamResult.content.length === 0) {
@@ -1002,8 +973,6 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
       setSolutionError(normalizeSolutionErrorMessage(message, selectionLabel));
       setSolutionPhaseStatus(null);
     } finally {
-      streamTextBatcher.flushNow();
-      streamTextBatcher.dispose();
       setSolutionLoading(false);
       setSolutionLoaded(true);
     }
@@ -1044,18 +1013,15 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
       elapsedMs: 0
     });
     const aiRequestPayload = buildAiRequestPayload(reviewSelection);
-    const streamTextBatcher = createStreamTextBatcher({
-      onReasoningChange: setReviewReasoningSummary,
-      onContentChange: setReviewGuidance
-    });
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/ai/bug-find/stream`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json"
-        },
-        body: JSON.stringify({
+      const streamResult = await runAiStreamRequest({
+        url: `${apiBaseUrl}/api/ai/bug-find/stream`,
+        contentField: "guidance",
+        parseErrorPayload: parseErrorMessage,
+        onReasoningChange: setReviewReasoningSummary,
+        onContentChange: setReviewGuidance,
+        body: {
           problemSlug: problem.slug,
           ...(currentSubmission.source === "submission" && currentSubmission.submissionId
             ? { submissionId: currentSubmission.submissionId }
@@ -1072,33 +1038,9 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
           errorMessage: currentSubmission.errorMessage,
           failureCase: currentSubmission.failureCase ?? null,
           failureSignals: currentSubmission.failureSignals ?? []
-        })
-      });
-
-      if (!response.ok || !response.body) {
-        const fallbackPayload = (await response.json().catch(() => null)) as unknown;
-        throw new Error(parseErrorMessage(fallbackPayload));
-      }
-
-      const streamResult = await consumeAiSemanticStream({
-        response,
-        contentField: "guidance",
+        },
         onPhase(payload) {
-          const message = typeof payload.message === "string" && payload.message.length > 0 ? payload.message : "正在处理中。";
-          setReviewPhaseStatus((previous) => ({
-            stage: typeof payload.stage === "string" && payload.stage.length > 0 ? payload.stage : "progress",
-            message,
-            elapsedMs: typeof payload.elapsedMs === "number" ? payload.elapsedMs : previous?.elapsedMs ?? 0
-          }));
-        },
-        onReasoningDelta(delta) {
-          streamTextBatcher.appendReasoning(delta);
-        },
-        onContentDelta(delta) {
-          streamTextBatcher.appendContent(delta);
-        },
-        onContentReplace(text) {
-          streamTextBatcher.replaceContent(text);
+          setReviewPhaseStatus((previous) => readPhaseStatusPayload(payload, previous));
         },
         onCompleted(payload) {
           setReviewPhaseStatus((previous) => ({
@@ -1106,17 +1048,12 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
             message: "判题结果已整理完成。",
             elapsedMs: previous?.elapsedMs ?? 0
           }));
-          if (typeof payload.reasoningSummary === "string" && payload.reasoningSummary.length > 0) {
-            streamTextBatcher.replaceReasoning(payload.reasoningSummary);
-          }
-          streamTextBatcher.flushNow();
         },
         onError(message) {
           setReviewError(message || "AI 判题失败，请稍后重试。");
         }
       });
 
-      streamTextBatcher.flushNow();
       if (streamResult.error) {
         setReviewError(streamResult.error);
       } else if (!streamResult.doneReceived || streamResult.content.length === 0) {
@@ -1127,8 +1064,6 @@ export default function ProblemSidePanel({ apiBaseUrl, problem }: Props) {
       setReviewError(message);
       setReviewPhaseStatus(null);
     } finally {
-      streamTextBatcher.flushNow();
-      streamTextBatcher.dispose();
       setReviewLoading(false);
     }
   }, [apiBaseUrl, currentSubmission, problem.slug, reviewSelection]);

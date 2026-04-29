@@ -30,6 +30,7 @@
 - [x] 题目掌握度可视化重构（迁移进度页 + 遗忘曲线 + 仅 C++ 计入口径）
 - [x] 题库已做题口径调整（core/acm 任一模式最新有效 C++ AC 即显示已做，单模式完成给出提示）
 - [x] 待复习列表藏数据过滤（暂只展示逾期小于 10 天记录，10 天及以上旧记录隐藏）
+- [x] 待复习列表展示上限移除（不再只取 Top10，展示全部逾期小于 10 天记录）
 - [x] 做题页展示重构（左右等高壳层 + 内部滚动 + 运行分析自适应折叠）
 - [x] ACM 全量适配（Hot100 元数据驱动 stdin 转换 + 无序多解语义归一 + 模式化题面规范）
 - [x] ACM 字段迁移兼容兜底（数据库未执行 009 时 API/seed 自动降级，不再因缺列报错）
@@ -46,7 +47,10 @@
 - [x] 左侧顶部页签满宽铺开（胶囊导航占满组件宽度，tab 等分分布）
 - [x] 左侧顶部页签与主面板融合（去掉独立悬浮壳层，改为内嵌式顶部导航）
 - [x] AI 前端展示重构（真实流式渲染 + `thinking/正文` 分流 + thinking 折叠/放大）
+- [x] AI 流式展示健壮性重构（统一 SSE 状态 reducer + 思考/正文优先级 + 前端纯函数测试）
+- [x] AI 正文 Markdown 实时渲染优化（OpenAI delta 语义 + 临时闭合未完成 Markdown + 流式光标）
 - [x] 端到端联调与验收
+- [x] 题库搜索输入体验修复（本地输入态与 URL 同步解耦，兼容中文输入法组合态，避免输入时被旧搜索参数回写）
 
 ## 3. P0 任务清单（按执行顺序）
 
@@ -164,8 +168,8 @@
 - [x] 掌握度算法改为“近 7 天连续 2 次 AC + 1/3/7/14/30 天复习间隔”
 - [x] 掌握度仅统计 C++，保留 core/acm 双模式轨道（`core-cpp/acm-cpp`）
 - [x] 已做题口径改为“任一支持模式最新有效 C++ 提交为 AC 即算已做”，并通过 `solvedModes/isSingleModeSolved` 暴露单模式提示
-- [x] 待复习 Top10 暂时过滤逾期 10 天及以上的历史藏数据，仅从逾期小于 10 天的记录开始展示
-- [x] `/api/progress/overview` 扩展 mastery 聚合块（状态分布、双模式完成度、待复习 Top10）
+- [x] 待复习列表暂时过滤逾期 10 天及以上的历史藏数据，并展示全部逾期小于 10 天的记录
+- [x] `/api/progress/overview` 扩展 mastery 聚合块（状态分布、双模式完成度、待复习题目列表）
 - [x] 题目页“运行与分析”移除掌握度卡片，题库页状态改为复习信号
 - [x] 单测补齐并通过：`mastery-metrics`、`progress-metrics`
 - [x] README / TECH_DESIGN / ToDo 同步更新
@@ -173,12 +177,26 @@
 ## 4. 本周开发记录（Progress Log）
 
 ### 2026-04-26
+- [x] 重构 `apps/web/lib/ai-stream.ts`：新增统一 `AiStreamFrame/AiStreamState/AiStreamContentKind`，集中处理 `response.output_text.delta`、`response.output_text.replace`、`response.reasoning_summary_text.delta`、`response.completed/done/error` 与 legacy `delta`
+- [x] 新增 `apps/web/lib/ai-stream-request.ts`：收敛 `AI题解/AI判题` 两条前端 SSE 请求消费流程，保留现有 API 入参与页面行为
+- [x] 优化 `apps/web/lib/ai-content-split.ts`：明确优先级为语义 reasoning 流 > 显式 `<think>` 块 > `Thought ... Final Answer ...` 启发式拆分，并修复正文尚未到达时 thinking 区不显示的问题
+- [x] 新增 `apps/web/lib/ai-streaming-markdown.ts`：按 OpenAI Responses `response.output_text.delta` 的增量显示方式，为流式正文临时闭合未完成 fence、inline code、链接、表格分隔行、粗体/删除线标记，减少 Markdown 中途错乱
+- [x] 修复 DeepSeek / OpenAI 兼容网关实时正文重复拼接：前端自动去重“语义 `response.output_text.delta` 后紧跟相同 legacy `delta`”的兼容重复帧，同时保留 legacy-only `delta` 正常追加
+- [x] 优化 `apps/web/components/ai-stream-panel.tsx` 与 `apps/web/app/globals.css`：正文/thinking 生成中显示轻量流式光标，代码块/表格/列表结尾场景保持可见
+- [x] 新增前端测试：`apps/web/lib/ai-stream.test.ts` 与 `apps/web/lib/ai-content-split.test.ts`，覆盖分帧、尾包、兼容重复 delta 去重、legacy-only delta 保留、replace、done、error、thinking/content 分流
+- [x] 新增前端测试：`apps/web/lib/ai-streaming-markdown.test.ts` 覆盖未闭合代码块、行内代码、强调标记、链接、表格分隔行、尾随空行与 CRLF
+- [x] README / ToDo 同步更新：补充 AI SSE 语义事件验证、Markdown 实时渲染验证、协议参考与 `npm run test -w @leetcodepro/web`
+- [x] 验证通过：`npm run check --workspaces`、`npm run test -w @leetcodepro/web`、`npm run test -w @leetcodepro/api`、`npm run build -w @leetcodepro/web`
 - [x] 重构 `apps/api/src/mastery-metrics.ts`：track 的 `isSolved` 改为按最新有效 C++ 终态提交判断，summary 新增 `solvedModes/isSingleModeSolved`，BOTH 题单模式最新 AC 即可在题库展示为已做题
 - [x] 重构 `apps/api/src/progress-metrics.ts`：待复习列表与数量暂只统计 `overdueDays < 10` 的记录，避免 10 天及以上历史藏数据污染当前列表
+- [x] 移除待复习列表默认 Top10 上限：`/api/progress/overview` 返回全部符合当前过滤规则的 `dueReviewItems`，前端 `/progress` 同步改为“待复习题目”
 - [x] 更新 `apps/web/app/problems/page.tsx`：题库页对单模式已做题显示“已做题”，副文案提示“单模式已做题：核心/ACM”，逾期时合并显示单模式提示与复习信号
 - [x] 新增回归测试：覆盖 AC 后又 WA 不算该模式已做、BOTH 单模式 AC 的 `solvedModes/isSingleModeSolved`、逾期 10 天及以上待复习记录隐藏
 - [x] README / ToDo 同步更新：补充掌握度接口字段、待复习过滤规则、题库页面验证步骤
 - [x] 验证通过：`npm test -w @leetcodepro/api -- mastery-metrics.test.ts progress-metrics.test.ts`、`npm run check -w @leetcodepro/api`、`npm run check -w @leetcodepro/web`
+- [x] 修复题库搜索输入不流畅：`ProblemSearchBox` 保持本地 draft 即时响应，URL 在输入停顿后同步，并避免服务端页面刷新把旧 `q` 覆盖到正在输入的内容
+- [x] 搜索框补充中文输入法组合态保护：拼音/中文候选输入期间不触发路由刷新，组合结束后再按最终文本搜索
+- [x] README / ToDo 同步更新：补充搜索连续输入不丢字、停顿后 URL 同步的页面验证步骤
 
 ### 2026-04-19
 - [x] 新增前端展示清洗工具：统一处理题面、示例输入输出、运行测试结果、失败样例、后台判题数据中的历史反引号脏格式
@@ -249,7 +267,7 @@
 ### 2026-04-15
 - [x] 重构 `apps/api/src/mastery-metrics.ts`：改为遗忘曲线口径，支持 `nextReviewAt/overdueDays/dueModes/consecutiveAc/reviewIntervalDays`
 - [x] 掌握度轨道由 4 条收敛为 2 条（`core-cpp/acm-cpp`），并过滤 Python 对掌握度的影响
-- [x] 扩展 `GET /api/progress/overview`：新增 `mastery` 聚合块（状态分布、模式完成度、待复习题目 Top10）
+- [x] 扩展 `GET /api/progress/overview`：新增 `mastery` 聚合块（状态分布、模式完成度、待复习题目列表）
 - [x] 前端 `/progress` 新增掌握度总览卡与待复习题目列表，显式提示“掌握度仅统计 C++ 提交”
 - [x] 前端题目页工作区移除掌握度卡片，题库页状态文案改为复习信号
 - [x] 新增/重写单测：`apps/api/src/mastery-metrics.test.ts`、`apps/api/src/progress-metrics.test.ts`

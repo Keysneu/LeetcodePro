@@ -117,7 +117,7 @@ export default function AiStreamPanel({
                   <span>{`思考${thinkingDurationText ? ` ${thinkingDurationText}` : ""}`}</span>
                   <span className={`inline-block text-xs transition-transform ${isThinkingCollapsed ? "-rotate-90" : "rotate-0"}`}>⌃</span>
                 </button>
-                <span className="text-[11px] font-medium text-[var(--lc-text-muted)]">推理摘要</span>
+                <span className="text-[11px] font-medium text-[var(--lc-text-muted)]">思考流</span>
                 <button
                   type="button"
                   className="ml-auto rounded-full border border-[var(--lc-border)] bg-[var(--lc-surface)] px-2.5 py-1.5 text-[11px] text-[var(--lc-text-muted)] transition-colors hover:bg-[var(--lc-surface-soft)] disabled:opacity-50"
@@ -133,7 +133,7 @@ export default function AiStreamPanel({
                   ref={thinkingViewportRef}
                   className={`mt-2.5 overflow-y-auto rounded-[12px] border border-[var(--lc-border-soft)] bg-[var(--lc-surface)] px-3 py-2.5 transition-[max-height] duration-200 ${thinkingHeightClass}`}
                 >
-                  <div className="lc-markdown lc-ai-markdown text-[13px] leading-6 text-[var(--lc-text-muted)]">
+                  <div className={`lc-markdown lc-ai-markdown text-[13px] leading-6 text-[var(--lc-text-muted)] ${isLoading && hasReasoning ? "lc-ai-streaming-markdown" : ""}`}>
                     {hasReasoning ? (
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{reasoningMarkdown}</ReactMarkdown>
                     ) : (
@@ -153,7 +153,7 @@ export default function AiStreamPanel({
             </div>
             {hasContent ? (
               <div ref={answerViewportRef} className="lc-scrollbar-hidden min-h-0 flex-1 overflow-y-auto pr-1">
-                <div className="lc-markdown lc-ai-markdown text-[15px] leading-7 text-[var(--lc-text)] [&>p:first-of-type]:text-base [&>p:first-of-type]:font-semibold [&>p:first-of-type]:leading-8 [&>p:first-of-type]:tracking-[-0.01em]">
+                <div className={`lc-markdown lc-ai-markdown text-[15px] leading-7 text-[var(--lc-text)] [&>p:first-of-type]:text-base [&>p:first-of-type]:font-semibold [&>p:first-of-type]:leading-8 [&>p:first-of-type]:tracking-[-0.01em] ${isLoading ? "lc-ai-streaming-markdown" : ""}`}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{contentMarkdown}</ReactMarkdown>
                 </div>
               </div>

@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start -p 3000",
     "check": "tsc --noEmit --incremental false",
+    "test": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"moduleResolution\":\"node\"}' node --test -r ts-node/register/transpile-only lib/**/*.test.ts",
     "clean": "rm -rf .next .next-dev"
   },
   "dependencies": {
@@ -26,6 +27,7 @@
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
+    "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
   }
 }

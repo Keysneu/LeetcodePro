@@ -310,24 +310,6 @@ function parseThoughtPrefixedContent(content: string): AssistantContentSplitResu
   };
 }
 
-function mergeReasoning(primary: string, secondary: string): string {
-  const normalizedPrimary = primary.trim();
-  const normalizedSecondary = secondary.trim();
-  if (!normalizedPrimary) {
-    return normalizedSecondary;
-  }
-  if (!normalizedSecondary) {
-    return normalizedPrimary;
-  }
-  if (normalizedPrimary.includes(normalizedSecondary)) {
-    return normalizedPrimary;
-  }
-  if (normalizedSecondary.includes(normalizedPrimary)) {
-    return normalizedSecondary;
-  }
-  return `${normalizedPrimary}\n\n${normalizedSecondary}`;
-}
-
 export function splitAssistantDisplayContent(
   reasoningSummary: string,
   content: string,
@@ -341,21 +323,15 @@ export function splitAssistantDisplayContent(
 
   if (!normalizedContent) {
     return {
-      reasoning: "",
+      reasoning: normalizedReasoning || normalizedFallbackReasoning,
       answer: ""
     };
   }
 
   if (normalizedReasoning) {
-    if (thinkTagSplit) {
-      return {
-        reasoning: mergeReasoning(normalizedReasoning, thinkTagSplit.reasoning),
-        answer: thinkTagSplit.answer
-      };
-    }
     return {
       reasoning: normalizedReasoning,
-      answer: normalizedContent.replace(/<\/?think>/gi, "").trim()
+      answer: thinkTagSplit ? thinkTagSplit.answer : normalizedContent.replace(/<\/?think>/gi, "").trim()
     };
   }
 

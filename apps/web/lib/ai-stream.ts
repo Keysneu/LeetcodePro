@@ -3,6 +3,33 @@ export type SseFrame = {
   data: string;
 };
 
+export type AiStreamContentKind = "reasoning" | "content";
+
+export type AiStreamFrame = {
+  event: string;
+  payload: AiSemanticPayload;
+};
+
+export type AiStreamState = {
+  doneReceived: boolean;
+  content: string;
+  reasoning: string;
+  error: string;
+  lastContentDeltaEvent: "response.output_text.delta" | "delta" | "";
+  lastContentDelta: string;
+};
+
+export type AiStreamFrameEffect =
+  | { kind: "none" }
+  | { kind: "meta"; payload: AiSemanticPayload }
+  | { kind: "phase"; payload: AiSemanticPayload }
+  | { kind: "reasoning-delta"; delta: string; payload: AiSemanticPayload }
+  | { kind: "reasoning-replace"; text: string; payload: AiSemanticPayload }
+  | { kind: "content-delta"; delta: string; payload: AiSemanticPayload }
+  | { kind: "content-replace"; text: string; payload: AiSemanticPayload }
+  | { kind: "error"; message: string; payload: AiSemanticPayload }
+  | { kind: "completed"; payload: AiSemanticPayload };
+
 type SseBoundary = {
   index: number;
   separatorLength: number;
@@ -47,6 +74,7 @@ export type AiSemanticStreamOptions = {
   onMeta?: (payload: AiSemanticPayload) => void;
   onPhase?: (payload: AiSemanticPayload) => void;
   onReasoningDelta?: (delta: string, payload: AiSemanticPayload) => void;
+  onReasoningReplace?: (text: string, payload: AiSemanticPayload) => void;
   onContentDelta?: (delta: string, payload: AiSemanticPayload) => void;
   onContentReplace?: (text: string, payload: AiSemanticPayload) => void;
   onCompleted?: (payload: AiSemanticPayload) => void;
@@ -124,7 +152,11 @@ export function consumeSseFrames(buffer: string): {
   return { frames, rest };
 }
 
-function parseAiSemanticPayload(raw: string): AiSemanticPayload {
+export function parseAiSemanticPayload(raw: string): AiSemanticPayload {
+  if (raw.trim() === "[DONE]") {
+    return { type: "done" };
+  }
+
   try {
     const parsed = JSON.parse(raw) as unknown;
     if (typeof parsed === "object" && parsed !== null) {
@@ -141,6 +173,144 @@ function readString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+function readOptionalString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+export function createInitialAiStreamState(): AiStreamState {
+  return {
+    doneReceived: false,
+    content: "",
+    reasoning: "",
+    error: "",
+    lastContentDeltaEvent: "",
+    lastContentDelta: ""
+  };
+}
+
+function rememberContentDelta(
+  state: AiStreamState,
+  event: "response.output_text.delta" | "delta",
+  delta: string
+): void {
+  state.lastContentDeltaEvent = event;
+  state.lastContentDelta = delta;
+}
+
+function clearContentDeltaMemory(state: AiStreamState): void {
+  state.lastContentDeltaEvent = "";
+  state.lastContentDelta = "";
+}
+
+export function normalizeAiStreamFrame(frame: SseFrame): AiStreamFrame {
+  const payload = parseAiSemanticPayload(frame.data);
+  const payloadType = typeof payload.type === "string" ? payload.type : "";
+  return {
+    event: payloadType && frame.event === "message" ? payloadType : frame.event,
+    payload
+  };
+}
+
+export function applyAiStreamFrameToState(
+  previous: AiStreamState,
+  frame: AiStreamFrame,
+  contentField: "guidance" | "editorial"
+): { state: AiStreamState; effect: AiStreamFrameEffect } {
+  const state: AiStreamState = { ...previous };
+  const { event, payload } = frame;
+
+  if (event === "meta") {
+    return { state, effect: { kind: "meta", payload } };
+  }
+
+  if (event === "phase") {
+    return { state, effect: { kind: "phase", payload } };
+  }
+
+  if (
+    event === "response.reasoning_summary_text.delta" ||
+    event === "response.reasoning_text.delta" ||
+    event === "response.thinking.delta" ||
+    event === "thinking_delta"
+  ) {
+    const delta = readString(payload.delta) || readString(payload.text);
+    if (!delta) {
+      return { state, effect: { kind: "none" } };
+    }
+    state.reasoning += delta;
+    return { state, effect: { kind: "reasoning-delta", delta, payload } };
+  }
+
+  if (
+    event === "response.reasoning_summary_text.done" ||
+    event === "response.reasoning_text.done" ||
+    event === "response.thinking.done"
+  ) {
+    const text = readOptionalString(payload.text) ?? readOptionalString(payload.reasoningSummary);
+    if (text === null) {
+      return { state, effect: { kind: "none" } };
+    }
+    state.reasoning = text;
+    return { state, effect: { kind: "reasoning-replace", text, payload } };
+  }
+
+  if (event === "response.output_text.delta" || event === "delta") {
+    const delta = readString(payload.delta) || readString(payload.text);
+    if (!delta) {
+      return { state, effect: { kind: "none" } };
+    }
+    if (
+      event === "delta" &&
+      state.lastContentDeltaEvent === "response.output_text.delta" &&
+      state.lastContentDelta === delta
+    ) {
+      rememberContentDelta(state, "delta", delta);
+      return { state, effect: { kind: "none" } };
+    }
+    state.content += delta;
+    rememberContentDelta(state, event, delta);
+    return { state, effect: { kind: "content-delta", delta, payload } };
+  }
+
+  if (event === "response.output_text.replace" || event === "response.output_text.done") {
+    const text = readOptionalString(payload.text) ?? readOptionalString(payload[contentField]);
+    if (text === null) {
+      return { state, effect: { kind: "none" } };
+    }
+    state.content = text;
+    clearContentDeltaMemory(state);
+    return { state, effect: { kind: "content-replace", text, payload } };
+  }
+
+  if (event === "error") {
+    const message = readString(payload.message) || readString(payload.error);
+    state.error = message;
+    return { state, effect: { kind: "error", message, payload } };
+  }
+
+  if (event === "response.completed" || event === "done" || payload.type === "done") {
+    state.doneReceived = true;
+    const finalContent = readOptionalString(payload[contentField]);
+    const finalReasoning = readOptionalString(payload.reasoningSummary);
+    const finalError = readOptionalString(payload.error);
+
+    if (finalContent !== null) {
+      state.content = finalContent;
+      clearContentDeltaMemory(state);
+    }
+    if (finalReasoning !== null) {
+      state.reasoning = finalReasoning;
+    }
+    if (finalError !== null) {
+      state.error = finalError;
+    }
+
+    return { state, effect: { kind: "completed", payload } };
+  }
+
+  return { state, effect: { kind: "none" } };
+}
+
 export async function consumeAiSemanticStream(options: AiSemanticStreamOptions): Promise<{
   doneReceived: boolean;
   content: string;
@@ -155,73 +325,52 @@ export async function consumeAiSemanticStream(options: AiSemanticStreamOptions):
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  let doneReceived = false;
-  let content = "";
-  let reasoningSummary = "";
-  let streamError = "";
+  let streamState = createInitialAiStreamState();
 
-  const applyFrame = (event: string, payload: AiSemanticPayload) => {
-    if (event === "meta") {
-      options.onMeta?.(payload);
-      return;
-    }
+  const applyFrame = (frame: SseFrame) => {
+    const applied = applyAiStreamFrameToState(streamState, normalizeAiStreamFrame(frame), contentField);
+    streamState = applied.state;
 
-    if (event === "phase") {
-      options.onPhase?.(payload);
-      return;
-    }
-
-    if (event === "response.reasoning_summary_text.delta") {
-      const delta = readString(payload.delta);
-      if (delta) {
-        reasoningSummary += delta;
-        options.onReasoningDelta?.(delta, payload);
+    switch (applied.effect.kind) {
+      case "meta":
+        options.onMeta?.(applied.effect.payload);
+        break;
+      case "phase":
+        options.onPhase?.(applied.effect.payload);
+        break;
+      case "reasoning-delta":
+        options.onReasoningDelta?.(applied.effect.delta, applied.effect.payload);
+        break;
+      case "reasoning-replace":
+        options.onReasoningReplace?.(applied.effect.text, applied.effect.payload);
+        break;
+      case "content-delta":
+        options.onContentDelta?.(applied.effect.delta, applied.effect.payload);
+        break;
+      case "content-replace":
+        options.onContentReplace?.(applied.effect.text, applied.effect.payload);
+        break;
+      case "error":
+        options.onError?.(applied.effect.message, applied.effect.payload);
+        break;
+      case "completed": {
+        const finalContent = readOptionalString(applied.effect.payload[contentField]);
+        const finalReasoning = readOptionalString(applied.effect.payload.reasoningSummary);
+        const finalError = readOptionalString(applied.effect.payload.error);
+        if (finalContent !== null) {
+          options.onContentReplace?.(finalContent, applied.effect.payload);
+        }
+        if (finalReasoning !== null) {
+          options.onReasoningReplace?.(finalReasoning, applied.effect.payload);
+        }
+        if (finalError !== null) {
+          options.onError?.(finalError, applied.effect.payload);
+        }
+        options.onCompleted?.(applied.effect.payload);
+        break;
       }
-      return;
-    }
-
-    if (event === "response.output_text.delta" || event === "delta") {
-      const delta = readString(payload.delta);
-      if (delta) {
-        content += delta;
-        options.onContentDelta?.(delta, payload);
-      }
-      return;
-    }
-
-    if (event === "response.output_text.replace") {
-      const text = readString(payload.text);
-      if (text) {
-        content = text;
-        options.onContentReplace?.(text, payload);
-      }
-      return;
-    }
-
-    if (event === "error") {
-      const message = readString(payload.message) || readString(payload.error);
-      streamError = message;
-      options.onError?.(message, payload);
-      return;
-    }
-
-    if (event === "response.completed" || event === "done") {
-      doneReceived = true;
-      const finalContent = readString(payload[contentField]);
-      const finalReasoning = readString(payload.reasoningSummary);
-      const finalError = readString(payload.error);
-      if (finalContent) {
-        content = finalContent;
-        options.onContentReplace?.(finalContent, payload);
-      }
-      if (finalReasoning) {
-        reasoningSummary = finalReasoning;
-      }
-      if (finalError) {
-        streamError = finalError;
-        options.onError?.(finalError, payload);
-      }
-      options.onCompleted?.(payload);
+      case "none":
+        break;
     }
   };
 
@@ -235,7 +384,7 @@ export async function consumeAiSemanticStream(options: AiSemanticStreamOptions):
     const parsed = consumeSseFrames(buffer);
     buffer = parsed.rest;
     for (const frame of parsed.frames) {
-      applyFrame(frame.event, parseAiSemanticPayload(frame.data));
+      applyFrame(frame);
     }
   }
 
@@ -243,21 +392,21 @@ export async function consumeAiSemanticStream(options: AiSemanticStreamOptions):
   const parsed = consumeSseFrames(buffer);
   buffer = parsed.rest;
   for (const frame of parsed.frames) {
-    applyFrame(frame.event, parseAiSemanticPayload(frame.data));
+    applyFrame(frame);
   }
 
   if (buffer.trim().length > 0) {
     const tailFrames = consumeSseFrames(`${buffer.trim()}\n\n`).frames;
     for (const frame of tailFrames) {
-      applyFrame(frame.event, parseAiSemanticPayload(frame.data));
+      applyFrame(frame);
     }
   }
 
   return {
-    doneReceived,
-    content,
-    reasoningSummary,
-    error: streamError
+    doneReceived: streamState.doneReceived,
+    content: streamState.content,
+    reasoningSummary: streamState.reasoning,
+    error: streamState.error
   };
 }
 

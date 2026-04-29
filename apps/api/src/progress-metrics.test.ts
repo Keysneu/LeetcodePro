@@ -106,8 +106,7 @@ test("due review items hide stale records that are overdue for 10 days or more",
     problems,
     submissions,
     timeZone: "Asia/Shanghai",
-    now: new Date("2026-04-15T00:00:00.000Z"),
-    dueReviewLimit: 10
+    now: new Date("2026-04-15T00:00:00.000Z")
   });
 
   assert.equal(result.mastery.dueReviewItems.length, 9);
@@ -124,6 +123,41 @@ test("due review items hide stale records that are overdue for 10 days or more",
     assert.ok(previous.overdueDays < 10);
     assert.ok(current.overdueDays < 10);
   }
+});
+
+test("due review items include all eligible records by default", () => {
+  const problems = Array.from({ length: 12 }).map((_, index) => ({
+    id: `review-p${index + 1}`,
+    slug: `review-problem-${index + 1}`,
+    title: `Review Problem ${index + 1}`,
+    leetcodeId: index + 1,
+    tags: ["数组"],
+    modeSupport: "CORE" as const
+  }));
+
+  const submissions = problems.map((problem) =>
+    submission({
+      id: `review-s-${problem.id}`,
+      problemId: problem.id,
+      status: "AC",
+      createdAt: "2026-04-14T00:00:00.000Z",
+      mode: "core"
+    })
+  );
+
+  const result = buildProgressOverview({
+    problems,
+    submissions,
+    timeZone: "Asia/Shanghai",
+    now: new Date("2026-04-15T00:00:00.000Z")
+  });
+
+  assert.equal(result.mastery.dueReviewItems.length, 12);
+  assert.equal(result.mastery.dueReviewProblems, 12);
+  assert.deepEqual(
+    new Set(result.mastery.dueReviewItems.map((item) => item.problemSlug)),
+    new Set(problems.map((problem) => problem.slug))
+  );
 });
 
 test("timezone bucketing differs across timezones for the same UTC timestamp", () => {

@@ -526,4 +526,35 @@ a {
     border-radius: 1rem;
     overflow: hidden;
   }
+
+  .lc-ai-streaming-markdown::after {
+    content: "";
+    display: inline-block;
+    width: 0.45rem;
+    height: 1.05em;
+    margin-left: 0.18rem;
+    transform: translateY(0.18em);
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--lc-accent) 82%, transparent);
+    animation: lc-stream-caret 1s ease-in-out infinite;
+  }
+
+  .lc-ai-streaming-markdown:has(> pre:last-child)::after,
+  .lc-ai-streaming-markdown:has(> table:last-child)::after,
+  .lc-ai-streaming-markdown:has(> ul:last-child)::after,
+  .lc-ai-streaming-markdown:has(> ol:last-child)::after {
+    display: block;
+    margin-top: 0.45rem;
+  }
+}
+
+@keyframes lc-stream-caret {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+
+  50% {
+    opacity: 0.9;
+  }
 }

@@ -286,7 +286,7 @@ export default function ProgressDashboard({ apiBaseUrl }: Props) {
         <div className="lc-card p-4 xl:col-span-3">
           <p className="text-xs text-[var(--lc-text-muted)]">待复习题数</p>
           <p className="mt-2 text-2xl font-semibold text-[var(--lc-danger)]">{loading ? "--" : (overview?.mastery.dueReviewProblems ?? 0)}</p>
-          <p className="mt-1 text-xs text-[var(--lc-text-muted)]">按逾期优先展示 Top10</p>
+          <p className="mt-1 text-xs text-[var(--lc-text-muted)]">按逾期优先展示全部</p>
         </div>
         <div className="lc-card p-4 xl:col-span-6">
           <p className="text-xs text-[var(--lc-text-muted)]">双模式熟练进度</p>
@@ -351,7 +351,7 @@ export default function ProgressDashboard({ apiBaseUrl }: Props) {
       <div className="lc-card p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-base font-semibold text-[var(--lc-text)]">待复习题目（Top10）</h2>
+            <h2 className="text-base font-semibold text-[var(--lc-text)]">待复习题目</h2>
             <p className="text-xs text-[var(--lc-text-muted)]">{overview?.mastery.note ?? "掌握度仅统计 C++ 提交"}</p>
           </div>
           <div className="text-xs text-[var(--lc-text-muted)]">

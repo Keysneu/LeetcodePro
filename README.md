@@ -29,6 +29,7 @@
 - 前端布局已升级为全站流式扩展：移除 `1400px` 固定上限，并按断点自适应利用大屏空间
 - 题库页展示已优化为“按题型分组 + 组内难度排序”，并将原“题目标识”列替换为“知识点”标签组件（显示该题全部标签）
 - 题库页已支持 URL 驱动模糊搜索：`/problems?q=关键词` 可按题号、题名、slug、标签进行大小写无关的部分匹配，刷新后保留搜索状态
+- 题库搜索框已拆分本地输入态与 URL 同步：连续输入时不会被服务端刷新回写旧关键词，中文输入法组合态结束后再触发搜索
 - 已支持夜间/白天主题切换（右上角按钮），并持久化到 `localStorage`
 - 题目详情页已打通“提交记录/题解”功能：提交记录展示历史提交与运行结果，题解支持 AI SSE 流式生成结构化讲解、Core 模式完整代码与 ACM 模式完整代码
 - 提交记录支持“回放联动”：点击历史提交可先确认再回放，自动回填当时代码与判题结果，并联动展示该次提交的 AI 找 Bug / AI 题解
@@ -69,13 +70,13 @@
 - 题面描述区支持按当前编辑模式切换展示：`core` 展示函数式样例，`acm` 展示标准输入输出规范与 ACM 示例输入
 - 数据库已扩展题目 ACM 字段：`acm_input_spec/acm_output_spec/acm_sample_input/acm_sample_output`，并在 `db:seed` 自动回填
 - 新增后台判题数据看板：支持按题查看判题使用的完整测试数据（公开/隐藏用例、权重、输入、期望输出）
-- 新增进度页可视化：`/progress` 已接入近 90 天打卡热力图、Top8 标签能力雷达图，以及“掌握度总览 + 待复习题目 Top10”
+- 新增进度页可视化：`/progress` 已接入近 90 天打卡热力图、Top8 标签能力雷达图，以及“掌握度总览 + 待复习题目列表”
 - 题库页与进度页中的题目入口已改为默认新开标签页，返回列表时无需重新展开或重新定位题目列表
 - 新增进度聚合接口：`GET /api/progress/overview?timezone=<IANA>`（热力图按 AC 提交次数累计，雷达图按标签 AC 覆盖率计算，并返回掌握度聚合块）
 - 题目掌握度口径已重构：采用遗忘曲线（`1/3/7/14/30` 天）+ 近 7 天连续 AC 规则，状态改为 `UNTOUCHED/LEARNING/REINFORCING/MASTERED/REVIEW_DUE`
 - 掌握度仅统计 C++ 提交，保留 `core/acm` 双模式轨道；Python 提交仍保留在提交记录与判题链路
 - 题库“已做题”口径已调整：同一题只要 `core` 或 `acm` 任一支持模式的最新有效 C++ 提交为 `AC`，就会在题库显示为已做；若只完成一个模式，复习信号会提示“单模式已做题”
-- 待复习列表已临时隐藏历史藏数据：当前 `/progress` 只展示逾期小于 10 天的待复习记录，逾期 10 天及以上的旧记录暂不计入列表与数量；后续新复习间隔仍保留 `14/30` 天扩展能力
+- 待复习列表已临时隐藏历史藏数据：当前 `/progress` 展示全部逾期小于 10 天的待复习记录，逾期 10 天及以上的旧记录暂不计入列表与数量；后续新复习间隔仍保留 `14/30` 天扩展能力
 - 做题页“运行与分析”已改为 LeetCode 风格双标签结构：`测试用例 / 测试结果` 二选一展示；测试用例面板支持查看官方示例，并可在前端本地新增/编辑/删除自定义 Case
 - 测试用例面板中的单行字段（如 `nums`、`期望输出`）已压缩为更紧凑的输入卡，优先单行展示，减少纵向占用
 - 题目页顶栏中部操作组已升级为 `刷新结果 / 运行测试 / 提交`：`运行测试` 会同步执行当前编辑器代码 + 右侧测试用例面板中的自定义 Case，不写 `submissions`；`提交` 仍按正式判题链路走 `写库 -> RabbitMQ -> Judge Dispatcher`
@@ -94,6 +95,8 @@
 - AI 思维展示遵循 OpenAI 官方边界：不展示原始 chain-of-thought，仅展示 `reasoning summary`（模型支持时）
 - AI 页签前端已支持 `thinking` 折叠/展开：`AI题解` 与 `AI判题` 的推理摘要可单独收起，不影响正文继续流式更新
 - AI Markdown 渲染已升级为“流式友好”模式：流到一半时会先补齐未闭合代码块再渲染，避免正文一直等到结尾才整体成型
+- AI 正文 Markdown 流式渲染继续按 OpenAI Responses 的 `response.output_text.delta` 语义事件优化：流式过程中会临时闭合未完成的代码块、行内代码、链接、表格分隔行与常见强调标记，并显示轻量流式光标；最终内容仍以完成帧为准
+- AI 前端 SSE 消费会自动去重“语义 `response.output_text.delta` 后紧跟相同 legacy `delta`”的兼容重复帧，DeepSeek / OpenAI 兼容网关的小颗粒输出不会在实时 Markdown 区重复拼接
 - AI 回答展示已升级为轻量“双流面板”样式：`AI题解` / `AI判题` 统一拆分为 `thinking` 与回答两个实时流式区域，移除头像徽标、内层大卡片和重复描边
 - `thinking` 面板支持 `展开/收起 + 放大/标准视图`，且在流式生成过程中保持实时追加渲染
 - 当前前端会优先使用独立 `reasoningSummary` 流；若模型把思考与回答混在同一段文本中，也会尝试按 `<think>...</think>` 或 `Thought ... Final Answer ...` 结构自动拆分
@@ -128,7 +131,7 @@
 - 方式 D：打开进度页验证热力图与雷达图（`/progress`）
 - 方式 E：打开题库与进度页验证掌握度状态与待复习列表（`/problems`、`/progress`）
 - 方式 F：打开做题页验证左右等高与运行分析自适应交互（`/problems/:slug`）
-- 方式 G：打开 `http://localhost:3000/problems?q=两数` 或 `?q=hash` 验证题库模糊搜索与 URL 状态保持
+- 方式 G：打开 `http://localhost:3000/problems?q=两数` 或 `?q=hash` 验证题库模糊搜索与 URL 状态保持；也可在搜索框连续输入 `hash`，确认输入不丢字且停顿后 URL 自动同步
 - 方式 H：在 `http://localhost:3000/problems` 或 `http://localhost:3000/progress` 点击任意题目，确认浏览器会新开题目标签页，原列表页保持原位置不丢失
 - 方式 I：打开任意题目页后切到 `ACM` 模式，确认左侧描述区不再出现“当前题面展示：ACM 模式规范（标准输入输出）”，代码区标题下也不再出现“桌面端固定工作台...”提示
 - 方式 J：在题目页右下工作区确认“运行与分析”顶部为 `测试用例 / 测试结果` 双标签；点击“测试用例”时只显示 Case 编辑区，点击“测试结果”时只显示运行结果或“请先执行代码”占位
@@ -440,10 +443,11 @@ curl -N -X POST http://localhost:3001/api/ai/bug-find/stream \
 ```
 
 预期：
-- 持续收到 `event: meta / phase / response.output_text.delta / response.completed / done`
+- 持续收到 `event: meta / phase / response.output_text.delta / response.completed / done`；模型支持时还会收到 `event: response.reasoning_summary_text.delta`
 - 在 `delta` 前应先收到 `event: phase`，阶段文案类似 `准备上下文 / 检索失败样例 / 请求模型 / 整理结果`
 - `meta` 事件包含 `sessionId`、`source`、`providerKind=openai_compatible`、`model`
 - `done` 事件中包含 `sessionId`、`source`、`providerKind`、`model`、`guidance`
+- 前端 `thinking` 区只消费后端显式 SSE reasoning/thinking 字段，或正文中显式 `<think>...</think>` 块；不会从隐藏提示词、日志或后端内部链路推断思考内容
 - `source` 优先为所选 provider（`vllm` / `minimax` / `deepseek`），不可用时回退为 `ai-tutor-fallback`
 - `guidance` 应直接给出“主要问题 + 具体修改点 + 快速验证”，并结合本次提交信号（报错/通过率/代码片段）定位错误
 - 若该提交存在结构化失败样例，`guidance` 应引用“输入 / 你的输出 / 期望输出”中的至少一项，而不是只说“检查状态更新顺序”
@@ -473,7 +477,44 @@ psql postgresql://postgres:postgres@localhost:5432/leetcodepro -c "select id, se
 psql postgresql://postgres:postgres@localhost:5432/leetcodepro -c "select role, left(content, 80) as preview, created_at from ai_messages where session_id = '<session-id>' order by created_at asc;"
 ```
 
-### 4.4.1 RAG / LangChain / LlamaIndex 接入验证（本次新增）
+### 4.4.1 AI SSE 语义事件与前端分流验证（本次新增）
+
+1. 直接验证 `AI题解` SSE 事件：
+
+```bash
+curl -N -X POST http://localhost:3001/api/ai/solution/stream \
+  -H "content-type: application/json" \
+  -d '{"problemSlug":"two-sum","problemTitle":"Two Sum","modeSupport":"BOTH","preferredLanguage":"cpp","provider":"vllm","description":"Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.","sampleInput":"nums = [2,7,11,15], target = 9","sampleOutput":"[0,1]"}'
+```
+
+预期：
+- 事件顺序应包含 `meta -> phase -> response.created/response.in_progress -> response.output_text.delta -> response.completed -> done`
+- 如果上游模型输出 reasoning/thinking，前端会消费 `response.reasoning_summary_text.delta` 并实时渲染到 `thinking` 区
+- 如果正文里显式包含 `<think>...</think>`，前端会把该块移入 `thinking` 区，回答区不重复展示 `<think>` 内容
+- 如果上游只返回普通正文，回答区仍应持续流式追加，不要求一定出现 thinking 内容
+- `response.output_text.replace` 出现时，前端应以快照替换当前正文，避免安全清洗导致的重复或闪烁
+- 如果 API 为兼容旧客户端同时发送 `response.output_text.delta` 与相同的 `delta`，前端实时正文只追加一次；旧版仅 `delta` 流仍应正常追加
+- 流式 Markdown 中途出现未闭合的 `` ```cpp ``、`` `inline code ``、`**bold`、`~~delete`、`[link](https://...` 或表格分隔行等片段时，页面应先以临时闭合形态实时渲染，最终完成后再按完整正文稳定展示
+
+2. 运行前端纯函数测试：
+
+```bash
+npm run test -w @leetcodepro/web
+```
+
+预期：
+- SSE 分帧测试覆盖 `\n\n`、`\r\n\r\n` 与尾包补齐
+- 语义事件测试覆盖 reasoning/content 分流、兼容重复 delta 去重、legacy-only delta 保留、`replace` 快照、`done` 最终字段和 `error` 事件
+- 混合内容测试覆盖 `<think>...</think>`、`Thought ... Final Answer ...` 与纯正文三类场景
+- 流式 Markdown 测试覆盖未闭合 fence、行内 code、强调标记、删除线、链接、表格分隔行、尾随空行保留与 CRLF 归一化
+
+协议参考：
+- OpenAI Responses streaming：`https://platform.openai.com/docs/api-reference/responses-streaming/response/reasoning_summary/delta`
+- DeepSeek reasoning content：`https://api-docs.deepseek.com/guides/reasoning_model`
+- Gemini thinking：`https://ai.google.dev/gemini-api/docs/thinking`
+- Anthropic thinking delta：`https://docs.anthropic.com/claude/reference/messages-streaming`
+
+### 4.4.2 RAG / LangChain / LlamaIndex 接入验证（本次新增）
 
 1. 确认 AI 服务健康信息包含 RAG 状态字段：
 
@@ -517,7 +558,7 @@ curl -X POST http://localhost:3001/api/notes/upload \
 浏览器打开并按下面步骤操作：
 
 1. 打开 `http://localhost:3000/problems`，确认列表来自 API，且题目总数为 `100`。
-2. 在题库页搜索框输入 `两数`，确认 URL 变为 `http://localhost:3000/problems?q=%E4%B8%A4%E6%95%B0`，列表仅保留匹配题，搜索框刷新后仍回显关键词。
+2. 在题库页搜索框连续输入 `两数`，确认输入过程不丢字、不被旧关键词回写；停顿约半秒后 URL 变为 `http://localhost:3000/problems?q=%E4%B8%A4%E6%95%B0`，列表仅保留匹配题，搜索框刷新后仍回显关键词。
 3. 点击搜索框右侧“清空”，确认返回 `http://localhost:3000/problems`，并恢复全量 `100` 题。
 4. 在题库页搜索框输入 `hash`，确认可命中带有 `哈希表` 标签的题目，说明搜索不仅匹配题名，也匹配标签/slug。
 5. 在题库页搜索框输入一个不存在的关键词（例如 `zzzz-no-match`），确认页面出现“未找到匹配题目”的空态，并保留“清空搜索”入口。
@@ -542,8 +583,8 @@ curl -X POST http://localhost:3001/api/notes/upload \
 24. 若失败题目存在公开失败样例，确认 AI 文本会引用“输入 / 你的输出 / 期望输出”中的具体值，而不是只返回泛化模板。
 25. 在左侧切到 `AI题解` 页签，将模型切换为 `vLLM（远程）` 后点击 `生成题解`。
 26. 观察 `AI题解` 区域不再在卡头显示“正在检索题解笔记与题目上下文”等阶段文案，正文仍会继续流式出现。
-27. 在 `AI题解` 或 `AI判题` 的 `thinking` 面板点击 `收起 thinking`，确认思考区可折叠；再次点击 `展开 thinking` 后，先前已流出的内容仍然保留。
-28. 在 `thinking` 面板点击 `放大 thinking`，确认思考区高度明显增加且内部可滚动；再点击 `标准视图` 可恢复常规高度。
+27. 在 `AI题解` 或 `AI判题` 的 `thinking` 面板点击 `收起 thinking`，确认思考流可折叠；再次点击 `展开 thinking` 后，先前已流出的内容仍然保留。
+28. 在 `thinking` 面板点击 `放大 thinking`，确认思考流高度明显增加且内部可滚动；再点击 `标准视图` 可恢复常规高度。
 29. 让模型输出包含 Markdown 代码块或列表的长回答，确认正文会边流边渲染，而不是等到整个响应结束后才一次性排版完成。
 30. 点击顶部导航右上角主题按钮，在“夜间/白天”之间切换 2 次，确认页面背景、卡片、文字和 Monaco 编辑器主题同步切换。
 31. 在题目左侧确认存在 5 个页签：`描述 / 提交记录 / 笔记题解 / AI题解 / AI判题`。
@@ -578,8 +619,10 @@ curl -X POST http://localhost:3001/api/notes/upload \
 - `AI题解` 在等待正文前，卡头不再展示阶段文案，避免出现“正在检索题解笔记与题目上下文”这类长提示
 - `AI题解` 与 `AI判题` 的 `thinking` 面板应支持 `收起 thinking / 展开 thinking / 放大 thinking / 标准视图`
 - 当模型流式输出未闭合的 Markdown 代码块时，正文也应继续实时排版，而不是等到最终 `done`
+- 当模型流式输出未闭合的行内代码、粗体、删除线、链接或表格分隔行时，正文不应整段样式错乱；临时闭合只在生成中生效
+- 使用 DeepSeek / OpenAI 兼容网关时，Network 中即使同时看到 `response.output_text.delta` 与相同 legacy `delta`，页面正文也不应出现重复 token 或重复代码围栏
 - `AI题解` 与 `AI判题` 的回答区应呈现统一双流卡片：无头像徽标、无顶部状态胶囊、独立 `thinking` 区与正文区，并且两块都应在流式过程中持续刷新
-- 当模型将思考与回答混在一段返回文本里时，前端应优先把思考内容抽到内嵌 `thinking` 区，正文区不应重复出现整段思考文本
+- 当模型通过 SSE reasoning/thinking 字段或显式 `<think>...</think>` 返回思考内容时，前端应优先把思考内容抽到内嵌 `thinking` 区，正文区不应重复出现整段思考文本
 - 对存在公开失败样例的 WA 提交，`AI判题` 应引用结构化失败样例（输入/输出/期望输出）中的具体值
 - 左侧 AI 页签不再展示调试元信息（`模型/来源/服务返回模型/会话/当前提交`）
 - 非 AC 时应展示“失败样例”卡片，包含输入/输出/期望输出；输出与期望的差异字符按红绿高亮显示
@@ -729,7 +772,7 @@ curl "http://localhost:3001/api/progress/overview?timezone=Asia/Shanghai"
   - `statusCounts`（`UNTOUCHED/LEARNING/REINFORCING/MASTERED/REVIEW_DUE`）
   - `masteredProblems`、`dueReviewProblems`、`bothModesMasteredProblems`
   - `modeCompletion.core/acm`
-  - `dueReviewItems`（最多 `10` 条，按 `overdueDays` 降序；当前仅展示 `overdueDays < 10` 的记录）
+  - `dueReviewItems`（展示全部符合条件的记录，按 `overdueDays` 降序；当前仅展示 `overdueDays < 10` 的记录）
   - `note`（应提示“掌握度仅统计 C++ 提交”，并说明待复习暂只展示逾期小于 10 天记录）
 
 错误路径验证（非法时区）：
@@ -749,7 +792,7 @@ curl "http://localhost:3001/api/progress/overview?timezone=Mars/OlympusMons"
 3. 其下应看到 3 个掌握度卡片：`已熟练题数`、`待复习题数`、`Core/ACM 双模式熟练进度`。
 4. 热力图应展示近 90 天连续日期格子；鼠标悬浮可看到日期和 AC 次数。
 5. 雷达图应展示 Top8 高频标签；tooltip 显示 `覆盖率%` 和 `已解/总题数`。
-6. 页面底部“待复习题目（Top10）”应显示题目、待复习模式、建议复习时间、逾期天数，并可点击跳转到题目页；当前逾期 `10` 天及以上的历史记录不会出现在列表中。
+6. 页面底部“待复习题目”应显示全部符合当前过滤规则的题目（不再只取前 `10` 条），每行包含题目、待复习模式、建议复习时间、逾期天数，并可点击跳转到题目页；当前逾期 `10` 天及以上的历史记录不会出现在列表中。
 7. 如切换系统时区后刷新页面，统计时区与图表分桶应随浏览器时区变化。
 
 ### 4.16 题目掌握度功能验证（本次新增）
@@ -877,11 +920,13 @@ curl http://localhost:3001/api/notes/problem/two-sum
 ### 4.11 单元测试验证（本次新增）
 
 ```bash
+npm run test -w @leetcodepro/web
 npm run test -w @leetcodepro/api
 npm run test -w @leetcodepro/judge-dispatcher
 ```
 
 预期：
+- `@leetcodepro/web`：AI SSE 解析、语义事件状态 reducer 与思考/正文拆分测试通过
 - `@leetcodepro/api`：`notes-matcher` 测试通过（题号边界切分 + 标题后缀括号兼容）
 - `@leetcodepro/judge-dispatcher`：判题回归测试通过（含 `move-zeroes` 的 `core/acm` 隔离回归）
 

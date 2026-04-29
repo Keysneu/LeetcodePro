@@ -68,7 +68,6 @@ export type ProgressOverview = {
 
 const DEFAULT_WINDOW_DAYS = 90;
 const DEFAULT_TOP_TAG_COUNT = 8;
-const DEFAULT_DUE_REVIEW_LIMIT = 10;
 const STALE_DUE_REVIEW_HIDE_DAYS = 10;
 
 function toDateKeyInTimeZone(date: Date, timeZone: string): string {
@@ -134,7 +133,6 @@ type BuildProgressOptions = {
   now?: Date;
   windowDays?: number;
   topTagCount?: number;
-  dueReviewLimit?: number;
 };
 
 export function buildProgressOverview(options: BuildProgressOptions): ProgressOverview {
@@ -144,8 +142,7 @@ export function buildProgressOverview(options: BuildProgressOptions): ProgressOv
     timeZone,
     now = new Date(),
     windowDays = DEFAULT_WINDOW_DAYS,
-    topTagCount = DEFAULT_TOP_TAG_COUNT,
-    dueReviewLimit = DEFAULT_DUE_REVIEW_LIMIT
+    topTagCount = DEFAULT_TOP_TAG_COUNT
   } = options;
 
   assertValidIanaTimeZone(timeZone);
@@ -344,8 +341,8 @@ export function buildProgressOverview(options: BuildProgressOptions): ProgressOv
           masteredProblems: acmMasteredProblems
         }
       },
-      dueReviewItems: dueReviewItems.slice(0, Math.max(0, dueReviewLimit)),
-      note: "掌握度仅统计 C++ 提交；待复习暂只展示逾期小于 10 天的记录"
+      dueReviewItems,
+      note: "掌握度仅统计 C++ 提交；待复习展示全部逾期小于 10 天的记录"
     }
   };
 }
